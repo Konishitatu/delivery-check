@@ -163,6 +163,12 @@ details.closed-sec summary{font-size:22px;font-weight:700;cursor:pointer;padding
 ul.log{list-style:none;margin:6px 0 12px;padding:0;font-size:17px;color:var(--sub);border-top:1px solid var(--rule)}
 ul.log li{padding:6px 0;border-bottom:1px solid var(--rule)}
 ul.log b{color:var(--ink)}
+ul.plan{list-style:none;margin:6px 0 14px;padding:0;border:1px solid var(--rule);border-radius:10px}
+ul.plan li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid var(--rule)}
+ul.plan li:first-child{border-top:0}
+ul.plan li.none{color:var(--sub)}
+ul.plan li.sum{justify-content:flex-end;font-weight:700;color:var(--sub)}
+ul.plan .btn{min-height:44px;padding:4px 14px;font-size:17px}
 .umsg{min-height:1.4em;font-weight:700;color:var(--accent)}
 .umsg.warn{color:var(--late)}
 .bknote{display:block;width:100%;text-align:left;border:1px solid #E8C98A;background:var(--part-bg);color:var(--part);border-radius:12px;padding:12px 18px;margin-bottom:14px;font-size:18px;font-weight:700}
@@ -237,7 +243,7 @@ ul.log b{color:var(--ink)}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-1</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-2</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -281,7 +287,7 @@ ul.log b{color:var(--ink)}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.07-1 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.07-2 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -10482,17 +10488,158 @@ const HCQ = (() => {
     }
     return out;
   }
-  async function zlib(u8, mode) { // mode: 'inflate' | 'deflate'
+  /* ---------- 予備の展開・圧縮（ブラウザ標準の機能が動かないときに使う） ----------
+     zlib形式（deflate）。展開は固定・動的ハフマン・無圧縮のすべてに対応。圧縮は固定ハフマン＋重複の参照。 */
+  const LBASE = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258];
+  const LEXT = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0];
+  const DBASE = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577];
+  const DEXT = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13];
+  function jsInflate(src) {
+    let p = 2, bitbuf = 0, bitcnt = 0;           // 先頭2バイトはzlibの見出し
+    let out = new Uint8Array(Math.max(1024, src.length * 4)), n = 0;
+    const need = k => { if (n + k > out.length) { const o = new Uint8Array(Math.max(out.length * 2, n + k)); o.set(out.subarray(0, n)); out = o; } };
+    const bits = c => {
+      while (bitcnt < c) { if (p >= src.length) throw new Error('データが途中で切れています'); bitbuf |= src[p++] << bitcnt; bitcnt += 8; }
+      const v = bitbuf & ((1 << c) - 1); bitbuf >>>= c; bitcnt -= c; return v;
+    };
+    const build = lens => {
+      const count = new Uint16Array(16), offs = new Uint16Array(16), symbol = new Uint16Array(lens.length);
+      for (const l of lens) count[l]++;
+      count[0] = 0;
+      for (let i = 1; i < 16; i++) offs[i] = offs[i - 1] + count[i - 1];
+      for (let i = 0; i < lens.length; i++) if (lens[i]) symbol[offs[lens[i]]++] = i;
+      return { count, symbol };
+    };
+    const decode = h => {
+      let code = 0, first = 0, index = 0;
+      for (let len = 1; len < 16; len++) {
+        code |= bits(1);
+        const c = h.count[len];
+        if (code - c < first) return h.symbol[index + (code - first)];
+        index += c; first += c; first <<= 1; code <<= 1;
+      }
+      throw new Error('符号が正しくありません');
+    };
+    let fixedL = null, fixedD = null;
+    for (let last = 0; !last;) {
+      last = bits(1);
+      const type = bits(2);
+      if (type === 0) {
+        bitbuf = 0; bitcnt = 0;
+        if (p + 4 > src.length) throw new Error('データが途中で切れています');
+        const len = src[p] | (src[p + 1] << 8); p += 4;
+        need(len); out.set(src.subarray(p, p + len), n); n += len; p += len;
+        continue;
+      }
+      let lit, dist;
+      if (type === 1) {
+        if (!fixedL) {
+          const l = new Uint8Array(288); l.fill(8, 0, 144); l.fill(9, 144, 256); l.fill(7, 256, 280); l.fill(8, 280, 288);
+          fixedL = build(l); fixedD = build(new Uint8Array(30).fill(5));
+        }
+        lit = fixedL; dist = fixedD;
+      } else if (type === 2) {
+        const hlit = bits(5) + 257, hdist = bits(5) + 1, hclen = bits(4) + 4;
+        const ORD = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
+        const cl = new Uint8Array(19);
+        for (let i = 0; i < hclen; i++) cl[ORD[i]] = bits(3);
+        const clh = build(cl);
+        const lens = new Uint8Array(hlit + hdist);
+        for (let i = 0; i < hlit + hdist;) {
+          const sym = decode(clh);
+          if (sym < 16) lens[i++] = sym;
+          else {
+            let rep, val = 0;
+            if (sym === 16) { if (!i) throw new Error('符号が正しくありません'); val = lens[i - 1]; rep = 3 + bits(2); }
+            else if (sym === 17) rep = 3 + bits(3);
+            else rep = 11 + bits(7);
+            while (rep--) lens[i++] = val;
+          }
+        }
+        lit = build(lens.subarray(0, hlit)); dist = build(lens.subarray(hlit));
+      } else throw new Error('対応していない形式です');
+      for (;;) {
+        const sym = decode(lit);
+        if (sym < 256) { need(1); out[n++] = sym; }
+        else if (sym === 256) break;
+        else {
+          const li = sym - 257, len = LBASE[li] + bits(LEXT[li]);
+          const di = decode(dist), d = DBASE[di] + bits(DEXT[di]);
+          if (d > n) throw new Error('参照先が正しくありません');
+          need(len);
+          for (let k = 0; k < len; k++) { out[n] = out[n - d]; n++; }
+        }
+      }
+    }
+    return out.slice(0, n);
+  }
+  function jsDeflate(data) {
+    const out = [0x78, 0x01]; let bitbuf = 0, bitcnt = 0;
+    const put = (v, c) => { bitbuf |= v << bitcnt; bitcnt += c; while (bitcnt >= 8) { out.push(bitbuf & 255); bitbuf >>>= 8; bitcnt -= 8; } };
+    const rev = (v, c) => { let r = 0; for (let i = 0; i < c; i++) { r = (r << 1) | (v & 1); v >>= 1; } return r; };
+    const huff = (code, len) => put(rev(code, len), len);
+    const lit = s => { if (s < 144) huff(0x30 + s, 8); else if (s < 256) huff(0x190 + s - 144, 9); else if (s < 280) huff(s - 256, 7); else huff(0xC0 + s - 280, 8); };
+    put(1, 1); put(1, 2);                          // 最後のブロック、固定ハフマン
+    const N = data.length, head = new Int32Array(1 << 15).fill(-1), prev = new Int32Array(N);
+    const hash = i => ((data[i] << 10) ^ (data[i + 1] << 5) ^ data[i + 2]) & 0x7fff;
+    const ins = i => { if (i + 2 < N) { const h = hash(i); prev[i] = head[h]; head[h] = i; } };
+    for (let i = 0; i < N;) {
+      let bl = 0, bd = 0;
+      if (i + 2 < N) {
+        for (let j = head[hash(i)], chain = 64; j >= 0 && i - j <= 32768 && chain-- > 0; j = prev[j]) {
+          let l = 0; while (l < 258 && i + l < N && data[j + l] === data[i + l]) l++;
+          if (l > bl) { bl = l; bd = i - j; if (l === 258) break; }
+        }
+      }
+      if (bl >= 3) {
+        let li = 28; while (LBASE[li] > bl) li--;
+        lit(257 + li); put(bl - LBASE[li], LEXT[li]);
+        let di = 29; while (DBASE[di] > bd) di--;
+        huff(di, 5); put(bd - DBASE[di], DEXT[di]);
+        for (let k = 0; k < bl; k++) ins(i + k);
+        i += bl;
+      } else { lit(data[i]); ins(i); i++; }
+    }
+    lit(256);
+    if (bitcnt > 0) out.push(bitbuf & 255);
+    let a = 1, b = 0; for (let i = 0; i < N; i++) { a = (a + data[i]) % 65521; b = (b + a) % 65521; }
+    out.push((b >>> 8) & 255, b & 255, (a >>> 8) & 255, a & 255);
+    return Uint8Array.from(out);
+  }
+
+  /* 展開・圧縮：まずブラウザ標準の機能を使い、エラーや時間切れ（4秒）なら予備の処理に切り替える。
+     一度切り替えたら、その後は最初から予備の処理を使う。 */
+  const engine = { inflate: '標準', deflate: '標準' };
+  const NATIVE_WAIT = 4000;
+  const timeout = (ms, label) => new Promise((_, rej) => setTimeout(() => rej(new Error(label + 'が' + ms / 1000 + '秒たっても終わりません')), ms));
+  async function nativeZ(u8, mode) {
     const st = mode === 'inflate' ? new DecompressionStream('deflate') : new CompressionStream('deflate');
     const r = new Response(new Blob([u8]).stream().pipeThrough(st));
     return new Uint8Array(await r.arrayBuffer());
   }
+  async function zlib(u8, mode) { // mode: 'inflate' | 'deflate'
+    if (engine[mode] === '標準') {
+      try {
+        if (typeof (mode === 'inflate' ? DecompressionStream : CompressionStream) !== 'function') throw new Error('標準機能なし');
+        return await Promise.race([nativeZ(u8, mode), timeout(NATIVE_WAIT, '標準の' + (mode === 'inflate' ? '展開' : '圧縮'))]);
+      } catch (e) {
+        // 展開と圧縮は同じ仕組みなので、片方が動かなければ両方とも予備に切り替える
+        engine.inflate = engine.deflate = '予備';
+        engine[mode + 'Reason'] = e.message;
+      }
+    }
+    return mode === 'inflate' ? jsInflate(u8) : jsDeflate(u8);
+  }
+  // 進み具合を画面に伝える（画面側で HCQ.onStep を設定する）
+  const step = t => { if (typeof api.onStep === 'function') api.onStep(t); };
+  const tick = () => new Promise(r => setTimeout(r, 0)); // 画面を描き直す時間を作る
 
   class ReadError extends Error {}
 
   /* ---------- PDFの中身を取り出す ---------- */
   async function readPdf(buf) {
     const raw = new Uint8Array(buf);
+    step('PDFの中身を調べています'); await tick();
     const L = bin(raw);
     if (!L.startsWith('%PDF')) throw new ReadError('PDFファイルではありません。Alf-Web からダウンロードした発注書のPDFを選んでください。');
 
@@ -10516,7 +10663,7 @@ const HCQ = (() => {
         else { const es = L.indexOf('endstream', ds); stream = raw.slice(ds, es); next = L.indexOf('endobj', es); }
       } else { body = L.slice(start, ei); next = ei; }
       objs[m[1]] = { n: +m[1], g: +m[2], dict: body, stream };
-      re.lastIndex = next > 0 ? next : ei;
+      re.lastIndex = Math.max(next > 0 ? next : ei, m.index + m[0].length); // 必ず先に進む（無限に回らないように）
     }
 
     // 暗号の鍵（閲覧用パスワードが空のもの）
@@ -10562,7 +10709,8 @@ const HCQ = (() => {
     })(pagesM[1], 0);
 
     const pages = [];
-    for (const id of pageIds) {
+    for (const [pi, id] of pageIds.entries()) {
+      step(`ページ ${pi + 1} ／ ${pageIds.length} を読んでいます（展開：${engine.inflate}）`); await tick();
       const cm = objs[id].dict.match(/\/Contents\s*(\[[^\]]*\]|\d+\s+\d+\s+R)/);
       let txt = '';
       if (cm) for (const r of (cm[1].match(/(\d+)\s+\d+\s+R/g) || [])) {
@@ -10672,6 +10820,7 @@ const HCQ = (() => {
     const lines = [[PAYLOAD_TAG, result.printedAt, result.rows.length].join('\t')]
       .concat(result.rows.map(r => [r.seller, r.orderedAt, r.maker, r.name, r.jan, r.spec, r.qty, r.due].map(clean).join('\t')));
     const text = lines.join('\n');
+    step('QRコード用にデータを圧縮しています'); await tick();
     const packed = await zlib(new TextEncoder().encode(text), 'deflate');
     const id = fnv(packed);
     const n = Math.max(1, Math.ceil(packed.length / CHUNK_MAX));
@@ -10697,7 +10846,8 @@ const HCQ = (() => {
     return new TextDecoder().decode(await zlib(all, 'inflate'));
   }
 
-  return { readPdf, buildOrders, makeChunks, joinChunks, ReadError, LAYOUT };
+  const api = { readPdf, buildOrders, makeChunks, joinChunks, ReadError, LAYOUT, engine, onStep: null, _jsInflate: jsInflate, _jsDeflate: jsDeflate };
+  return api;
 })();
 if (typeof module !== 'undefined') module.exports = HCQ;
 
@@ -10708,7 +10858,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.07-1';
+  const VERSION = 'v2026.10.07-2';
   const SCHEMA = 2;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -10901,7 +11051,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         const late = (st === 'open' || st === 'partial') && o.due && o.due < t && !activeIssue(o);
         const badges = [];
         if (st === 'done') badges.push(`<span class="badge done">納品 ${fmtShort(o.doneAt)}</span>`);
-        if (st === 'cancelled') badges.push(`<span class="badge cancel">キャンセル ${fmtShort(o.cancelledAt)}</span>`);
+        if (st === 'cancelled') badges.push(`<span class="badge cancel">キャンセル${o.cancelReason ? '（' + CANCEL_REASON[o.cancelReason].replace('ため', '') + '）' : ''} ${fmtShort(o.cancelledAt)}</span>`);
         if (st === 'partial') badges.push(`<span class="badge part">一部納品 ${o.delivered}/${o.qty}（残り${o.qty - o.delivered}）</span>`);
         if (activeIssue(o)) badges.push(`<button class="badge btn-like ${o.issue.state === 'open' ? 'issue-open' : 'issue-doing'}" data-act="issue">${esc(issueLabel(o))} ›</button>`);
         if (late) badges.push(`<span class="badge late">納品指定日を過ぎています</span>`);
@@ -11019,8 +11169,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     switch (e.type) {
       case 'flag': return t + `届かなかった（残り${e.remain}個）`;
       case 'confirm': return t + `卸に確認：予定 ${esc(etaText(e.eta))}${e.reason ? '　理由 ' + esc(e.reason) : ''}${e.memo ? '　メモ「' + esc(e.memo) + '」' : ''}`;
-      case 'arrange': return t + `${esc(e.seller)}で${e.qty}個手配（元の発注は${e.keep ? '引き続き待つ' : 'キャンセル'}）${e.memo ? '　メモ「' + esc(e.memo) + '」' : ''}`;
-      case 'cancel': return t + `キャンセル${e.memo ? '　メモ「' + esc(e.memo) + '」' : ''}`;
+      case 'arrange': return t + (e.list ? e.list.map(x => `${esc(x.seller)}で${x.qty}個`).join('、') + 'を手配' : `${esc(e.seller)}で${e.qty}個手配（元の発注は${e.keep ? '引き続き待つ' : 'キャンセル'}）`) + (e.memo ? '　メモ「' + esc(e.memo) + '」' : '');
+      case 'cancel': return t + `キャンセル${e.reason ? '（' + CANCEL_REASON[e.reason] + '）' : ''}${e.memo ? '　メモ「' + esc(e.memo) + '」' : ''}`;
       case 'reopen': return t + 'キャンセルを取り消し';
       case 'partial': return t + `一部納品 ${e.count}個`;
       case 'delivered': return t + '納品（解決）';
@@ -11040,7 +11190,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (cls === 'open') l3 = `<span class="badge issue-open">未対応</span>届かなかった ${fmtShort(is.flaggedAt)}`;
     else if (cls === 'doing') l3 = `<span class="badge issue-doing">${is.state === 'confirmed' ? '卸に確認済み' : '別の卸で手配済み'}</span>` +
       (is.state === 'confirmed' ? `納品予定 <b>${esc(etaText(is.eta))}</b>` : '元の卸からも後日届く予定') + (is.reason ? `　理由 ${esc(is.reason)}` : '');
-    else l3 = st === 'cancelled' ? `<span class="badge cancel">キャンセル</span>${fmtShort(o.cancelledAt)}` : `<span class="badge done">納品</span>${fmtShort(o.doneAt)}（届かなかった ${fmtShort(is.flaggedAt)}）`;
+    else l3 = st === 'cancelled' ? `<span class="badge cancel">キャンセル${o.cancelReason ? '・' + CANCEL_REASON[o.cancelReason].replace('ため', '') : ''}</span>${fmtShort(o.cancelledAt)}` : `<span class="badge done">納品</span>${fmtShort(o.doneAt)}（届かなかった ${fmtShort(is.flaggedAt)}）`;
     const remain = o.qty - o.delivered;
     return `<button class="iss ${cls}" data-key="${esc(o.key)}">
       <div class="l1"><span class="seller">${esc(o.seller)}</span><span class="nm">${o.source === 'arranged' ? PENCIL : ''}${esc(o.name)}</span></div>
@@ -11080,12 +11230,14 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const logs = `<div class="dlabel">対応の記録</div><ul class="log">${is.log.slice().reverse().map(e => `<li>${logText(e)}</li>`).join('')}</ul>`;
     const head = `<h3>${o.source === 'arranged' ? PENCIL : ''}${esc(o.name)}</h3><p>${esc(o.seller)}　${esc(o.spec)}　数量 ${o.qty}個${o.delivered && statusOf(o) !== 'done' ? `（届いた ${o.delivered}・残り ${o.qty - o.delivered}）` : ''}</p>`;
     if (!activeIssue(o)) {
-      dialog(head + logs + `<div class="actions">${o.cancelled ? '<button type="button" class="btn danger" id="dReopen">キャンセルを取り消す</button>' : ''}<button type="button" class="btn primary" data-close>閉じる</button></div>`);
+      dialog(head + logs + `${o.cancelled ? '<p style="font-size:17px;color:var(--sub)">キャンセルを押し間違えたときは「キャンセルを取り消す」で元に戻せます。取り消すと、キャンセルの記録も消えます。</p>' : ''}<div class="actions">${o.cancelled ? '<button type="button" class="btn danger" id="dReopen">キャンセルを取り消す</button>' : ''}<button type="button" class="btn primary" data-close>閉じる</button></div>`);
       if ($('dReopen')) $('dReopen').addEventListener('click', async () => {
-        const now = Date.now();
-        o.cancelled = false; delete o.cancelledAt; delete is.resolvedAt; is.state = is.eta ? 'confirmed' : 'open';
-        issueLog(o, { at: now, type: 'reopen' });
-        await putOrder(o); closeDialog(); refresh();
+        // 操作の間違いを直すためのもの。キャンセルの記録も、取り消したことも残さない
+        const bc = is.beforeCancel;
+        if (bc) { is.state = bc.state; is.log = is.log.slice(0, bc.logLen); }
+        else { is.state = (o.children || []).length ? 'arranged' : is.eta ? 'confirmed' : 'open'; is.log = is.log.filter(x => x.type !== 'cancel'); }
+        o.cancelled = false; delete o.cancelledAt; delete o.cancelReason; delete is.resolvedAt; delete is.beforeCancel;
+        await putOrder(o); closeDialog(); refresh(); toast('キャンセルを取り消しました（記録には残りません）');
       });
       return;
     }
@@ -11125,8 +11277,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       ${opts('oDay', [['d0', '今日'], ['d1', '明日'], ['d2', 'あさって'], ['pick', '日付を選ぶ'], ['none', '未定']], dayCur)}
       <p id="pickRow" ${dayCur === 'pick' ? '' : 'hidden'}><input type="date" id="oDate" value="${e.date && dayCur === 'pick' ? e.date.replace(/\//g, '-') : ''}"></p>
       <div class="dlabel">時間（わかれば）</div>
-      ${opts('oSlot', [['am', '午前便'], ['pm', '午後便'], ['time', '時刻を入力'], ['', 'なし']], e.slot ?? '')}
-      <p id="timeRow" ${e.slot === 'time' ? '' : 'hidden'}><input type="time" id="oTime" value="${esc(e.time || '')}"></p>
+      ${opts('oSlot', [['am', '午前便'], ['pm', '午後便'], ['', 'なし']], e.slot === 'time' ? '' : (e.slot ?? ''))}
       <div class="dlabel">理由（わかれば）</div>
       ${opts('oReason', [['欠品', '欠品'], ['出荷調整', '出荷調整'], ['配送の遅れ', '配送の遅れ'], ['その他', 'その他']], is.reason || null)}
       <div class="dlabel">メモ</div>
@@ -11134,7 +11285,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       <p class="preview" id="oMsg"></p>
       <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="oSave">記録する</button></div>`);
     const getDay = bindOpts('oDay', v => { $('pickRow').hidden = v !== 'pick'; });
-    const getSlot = bindOpts('oSlot', v => { $('timeRow').hidden = v !== 'time'; });
+    const getSlot = bindOpts('oSlot');
     const getReason = bindOpts('oReason', null, true);
     $('oSave').addEventListener('click', async () => {
       const day = getDay();
@@ -11143,7 +11294,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       if (day === 'd0') date = d0; else if (day === 'd1') date = d1; else if (day === 'd2') date = d2;
       else if (day === 'pick') { const v = $('oDate').value; if (!v) { $('oMsg').textContent = '日付を選んでください。'; $('oMsg').classList.add('warn'); return; } date = v.replace(/-/g, '/'); }
       const slot = day === 'none' ? '' : (getSlot() || '');
-      const eta = { date, undecided: day === 'none', slot, time: slot === 'time' ? $('oTime').value : '' };
+      const eta = { date, undecided: day === 'none', slot, time: '' };
       const now = Date.now();
       is.state = 'confirmed'; is.eta = eta; is.reason = getReason() || ''; is.memo = $('oMemo').value.trim();
       issueLog(o, { at: now, type: 'confirm', eta, reason: is.reason, memo: is.memo });
@@ -11151,59 +11302,101 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     });
   }
 
-  // 別の卸で手配した
+  // 別の卸で手配した（1つの発注を、複数の卸に分けて頼む場合にも対応）
+  const SELLERS = ['アルフレッサ', 'スズケン', 'メディセオ', '東邦', '榎本薬品', '東和薬品']; // 手配先の選択肢（取引先）
   function arrangeDialog(o) {
     const rest = o.qty - o.delivered;
-    const sellers = [];
-    orders.slice().sort((a, b) => a.importedAt - b.importedAt).forEach(x => { if (x.seller !== o.seller && !sellers.includes(x.seller)) sellers.push(x.seller); });
+    const sellers = SELLERS.slice();
+    orders.forEach(x => { if (x.source !== 'arranged' && !sellers.includes(x.seller)) sellers.push(x.seller); });
+    const choices = sellers.filter(s => s !== o.seller);
+    const plan = []; // 手配する内容 [{seller, qty}]
     const nums = []; for (let n = 1; n <= Math.min(rest, 15); n++) nums.push([String(n), n + '個']);
-    dialog(`<h3>${esc(o.name)}</h3><p>${esc(o.seller)}の発注（残り${rest}個）を、別の卸で手配した内容を記録します。</p>
+    dialog(`<h3>${esc(o.name)}</h3><p>${esc(o.seller)}の発注（残り${rest}個）を、別の卸で手配した内容を記録します。複数の卸に分けて頼んだ場合は、1つずつ「一覧に加える」を押してください。</p>
       <div class="dlabel">手配先</div>
-      ${opts('aSeller', sellers.map(s => [s, esc(s)]).concat([['__other', 'その他']]), null)}
+      ${opts('aSeller', choices.map(s => [s, esc(s)]).concat([['__other', 'その他']]), null)}
       <p id="otherRow" hidden><input type="text" id="aOther" placeholder="手配先の名前"></p>
       <div class="dlabel">手配した数</div>
       ${rest > 15 ? `<p><input type="number" id="aQty" inputmode="numeric" min="1" value="${rest}" style="font-size:22px;width:6em;padding:8px;border:2px solid var(--rule);border-radius:10px"> 個</p>` : opts('aQtyOpts', nums, String(rest))}
+      <p><button type="button" class="btn" id="aAdd">＋ 一覧に加える</button></p>
+      <div class="dlabel">手配する内容</div>
+      <ul class="plan" id="aPlan"><li class="none">まだありません</li></ul>
       <div class="dlabel">元の${esc(o.seller)}の発注は</div>
       ${opts('aKeep', [['cancel', 'キャンセルした'], ['keep', '引き続き待つ（後日届く予定）']], null)}
       <div class="dlabel">メモ</div>
-      <textarea id="aMemo" placeholder="例：スズケンの担当さんに電話で依頼"></textarea>
+      <textarea id="aMemo" placeholder="例：東邦の担当さんに電話で依頼"></textarea>
       <p class="preview" id="aMsg"></p>
       <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="aSave">記録する</button></div>`);
     const getSeller = bindOpts('aSeller', v => { $('otherRow').hidden = v !== '__other'; });
     const getQty = $('aQtyOpts') ? bindOpts('aQtyOpts') : () => $('aQty').value;
     const getKeep = bindOpts('aKeep');
     const warn = t => { $('aMsg').textContent = t; $('aMsg').classList.add('warn'); };
-    $('aSave').addEventListener('click', async () => {
+    const renderPlan = () => {
+      const total = plan.reduce((a, x) => a + x.qty, 0);
+      $('aPlan').innerHTML = plan.length ? plan.map((x, i) => `<li><span>${esc(x.seller)}　<b>${x.qty}個</b></span><button type="button" class="btn danger" data-del="${i}">削除</button></li>`).join('') +
+        `<li class="sum">合計 ${total}個${total > rest ? `（残り${rest}個より多くなっています）` : ''}</li>` : '<li class="none">まだありません</li>';
+    };
+    // 選んでいる手配先と数を一覧に加える（加えられたら true）
+    const addCurrent = () => {
       let seller = getSeller();
-      if (seller === '__other') seller = $('aOther').value.trim();
-      if (!seller) return warn('手配先を選んでください。');
+      if (!seller) return false;
+      if (seller === '__other') { seller = $('aOther').value.trim(); if (!seller) { warn('手配先の名前を入力してください。'); return null; } }
       const qty = parseInt(getQty(), 10);
-      if (!(qty >= 1)) return warn('手配した数を選んでください。');
+      if (!(qty >= 1)) { warn('手配した数を選んでください。'); return null; }
+      const same = plan.find(x => x.seller === seller);
+      if (same) same.qty += qty; else plan.push({ seller, qty });
+      $('aSeller').querySelectorAll('.opt').forEach(b => b.classList.remove('on'));
+      $('otherRow').hidden = true; $('aOther').value = '';
+      $('aMsg').textContent = ''; renderPlan();
+      // 次の手配先のために、数の選択を「まだ手配していない残りの数」にしておく
+      const left = rest - plan.reduce((a, x) => a + x.qty, 0);
+      if (left >= 1) { const nb = $('aQtyOpts') && $('aQtyOpts').querySelector(`[data-v="${left}"]`); if (nb) nb.click(); else if ($('aQty')) $('aQty').value = left; }
+      return true;
+    };
+    $('aAdd').addEventListener('click', () => { if (addCurrent() === false) warn('先に手配先を選んでください。'); });
+    $('aPlan').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (b) { plan.splice(+b.dataset.del, 1); renderPlan(); } });
+    $('aSave').addEventListener('click', async () => {
+      if (getSeller()) { if (addCurrent() === null) return; }   // 選んだまま「一覧に加える」を押し忘れていても加える
+      if (!plan.length) return warn('手配先を選んで「一覧に加える」を押してください。');
       const keep = getKeep();
       if (!keep) return warn('元の発注をどうしたかを選んでください。');
-      const now = Date.now(), memo = $('aMemo').value.trim();
-      const kid = { key: 'arr|' + now + '|' + Math.random().toString(36).slice(2, 8), source: 'arranged', parentKey: o.key,
-        seller, orderedAt: nowStamp(), maker: o.maker, name: o.name, jan: o.jan, spec: o.spec, qty, due: '',
-        importedAt: now, printedAt: '', delivered: 0, checks: [], issue: null, cancelled: false, schema: SCHEMA };
-      o.children = (o.children || []).concat(kid.key);
-      issueLog(o, { at: now, type: 'arrange', seller, qty, keep: keep === 'keep', memo });
-      if (keep === 'keep') o.issue.state = 'arranged';
-      else { o.cancelled = true; o.cancelledAt = now; o.issue.state = 'cancelled'; o.issue.resolvedAt = now; }
-      const tx = db.transaction('orders', 'readwrite'); tx.objectStore('orders').put(o); tx.objectStore('orders').put(kid); await done(tx);
-      orders.push(kid);
-      closeDialog(); refresh(); toast(`${seller}の手配分を納品チェックに追加しました`);
+      const now = Date.now(), memo = $('aMemo').value.trim(), stamp = nowStamp();
+      const kids = plan.map((x, i) => ({ key: 'arr|' + now + '|' + i + '|' + Math.random().toString(36).slice(2, 8), source: 'arranged', parentKey: o.key,
+        seller: x.seller, orderedAt: stamp, maker: o.maker, name: o.name, jan: o.jan, spec: o.spec, qty: x.qty, due: '',
+        importedAt: now, printedAt: '', delivered: 0, checks: [], issue: null, cancelled: false, schema: SCHEMA }));
+      o.children = (o.children || []).concat(kids.map(k => k.key));
+      issueLog(o, { at: now, type: 'arrange', list: plan.map(x => ({ seller: x.seller, qty: x.qty })), memo });
+      o.issue.state = 'arranged';
+      if (keep === 'cancel') doCancel(o, now, 'arranged', '');
+      const tx = db.transaction('orders', 'readwrite'); const os = tx.objectStore('orders');
+      os.put(o); kids.forEach(k => os.put(k)); await done(tx);
+      orders.push(...kids);
+      closeDialog(); refresh(); toast(`${plan.map(x => x.seller).join('・')}の手配分を納品チェックに追加しました`);
     });
   }
 
+  // キャンセルの理由
+  const CANCEL_REASON = { arranged: '他の卸で手配できたため', unneeded: '不要になったため' };
+  // キャンセルする（取り消せるよう、直前の状態を控えておく）
+  function doCancel(o, now, reason, memo) {
+    o.issue.beforeCancel = { state: o.issue.state, logLen: o.issue.log.length };
+    o.cancelled = true; o.cancelledAt = now; o.cancelReason = reason;
+    o.issue.state = 'cancelled'; o.issue.resolvedAt = now;
+    issueLog(o, { at: now, type: 'cancel', reason, memo });
+  }
   // キャンセルした
   function cancelDialog(o) {
-    dialog(`<h3>${esc(o.name)}</h3><p>${esc(o.seller)}のこの発注をキャンセル（不要になった）として閉じます。記録は残り、「解決済み」から見直せます。</p>
+    const hasKids = (o.children || []).length > 0;
+    dialog(`<h3>${esc(o.name)}</h3><p>${esc(o.seller)}のこの発注をキャンセルとして閉じます。記録は残り、「解決済み」から見直せます。</p>
+      <div class="dlabel">キャンセルの理由</div>
+      ${opts('cReason', [['arranged', '他の卸で手配できた'], ['unneeded', '不要になった']], hasKids ? 'arranged' : null)}
       <div class="dlabel">メモ</div><textarea id="cMemo" placeholder="例：患者さんの処方変更で不要に"></textarea>
+      <p class="preview" id="cMsg"></p>
       <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn danger" id="cSave">キャンセルとして閉じる</button></div>`);
+    const getReason = bindOpts('cReason');
     $('cSave').addEventListener('click', async () => {
-      const now = Date.now();
-      o.cancelled = true; o.cancelledAt = now; o.issue.state = 'cancelled'; o.issue.resolvedAt = now;
-      issueLog(o, { at: now, type: 'cancel', memo: $('cMemo').value.trim() });
+      const reason = getReason();
+      if (!reason) { $('cMsg').textContent = 'キャンセルの理由を選んでください。'; $('cMsg').classList.add('warn'); return; }
+      doCancel(o, Date.now(), reason, $('cMemo').value.trim());
       await putOrder(o); closeDialog(); refresh(); toast('キャンセルとして閉じました');
     });
   }
