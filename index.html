@@ -171,6 +171,11 @@ ul.plan li.sum{justify-content:flex-end;font-weight:700;color:var(--sub)}
 ul.plan .btn{min-height:44px;padding:4px 14px;font-size:17px}
 ul.plan small{color:var(--sub);font-size:16px}
 .badge.issue-hold{background:#F1ECDC;color:#6B5B2E}
+.badge.issue-dorm{background:#ECEFF1;color:#4A5A66}
+.iss.dormant{border-left-color:#9EADB7}
+.dsub{margin:14px 6px 8px;font-size:17px;font-weight:700;color:var(--sub)}
+.card.dorm{background:#F7F9F9;border-style:dashed}
+.item.dormant .body{opacity:.8}
 .iss.hold{border-left-color:#B9A66A}
 .stabs{display:flex;gap:4px;overflow-x:auto;border-bottom:2px solid var(--rule);margin:0 0 16px;-webkit-overflow-scrolling:touch}
 .stab{border:0;background:none;padding:12px 18px 10px;min-height:56px;font-size:19px;font-weight:700;color:var(--sub);border-bottom:4px solid transparent;margin-bottom:-2px;white-space:nowrap}
@@ -251,7 +256,7 @@ ul.plan small{color:var(--sub);font-size:16px}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-5</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-6</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -295,7 +300,7 @@ ul.plan small{color:var(--sub);font-size:16px}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.07-5 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.07-6 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -10880,7 +10885,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.07-5';
+  const VERSION = 'v2026.10.07-6';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -10936,6 +10941,9 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   const isHold = o => activeIssue(o) && o.issue.state === 'hold';
   const holdDue = o => isHold(o) && o.issue.hold && o.issue.hold.until && o.issue.hold.until <= today();
   const needsAction = o => activeIssue(o) && (o.issue.state === 'open' || holdDue(o));
+  // 見直し不要：届いていないが、もう追わない（キャンセルはしていないので、忘れた頃に届くことがある）
+  const isDormant = o => activeIssue(o) && o.issue.state === 'dormant';
+  const DORMANT_REASON = { elsewhere: '他の卸から届いた', unneeded: '不要になった' };
 
   let orders = [], imports = [];
   async function loadAll() {
@@ -11043,6 +11051,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (is.state === 'open') return '届かなかった・未対応';
     if (is.state === 'confirmed') return '卸に確認済み　予定 ' + etaText(is.eta);
     if (is.state === 'arranged') return '別の卸で手配済み・元の卸からも届く予定';
+    if (is.state === 'dormant') return '見直し不要・届いたら受け取る';
     if (is.state === 'hold') return holdDue(o) ? '保留の見直し日になりました' : '保留中' + (is.hold && is.hold.until ? '（見直し ' + md(is.hold.until) + '）' : '');
     return '';
   }
@@ -11054,13 +11063,14 @@ if (typeof module !== 'undefined') module.exports = HCQ;
 
   function renderList() {
     renderBackupInfo();
-    const open = orders.filter(o => ['open', 'partial'].includes(statusOf(o)));
+    const openAll = orders.filter(o => ['open', 'partial'].includes(statusOf(o)));
+    const open = openAll.filter(o => !isDormant(o));          // 件数には見直し不要を含めない
     const doneRecent = orders.filter(o => statusOf(o) === 'done' && withinDays(o.doneAt || o.importedAt, DONE_DAYS));
     const cancelRecent = orders.filter(o => o.cancelled && withinDays(o.cancelledAt, DONE_DAYS));
     $('n-open').textContent = open.length + '件';
     $('n-done').textContent = doneRecent.length + '件';
     $('n-all').textContent = (open.length + doneRecent.length + cancelRecent.length) + '件';
-    const list = filter === 'open' ? open : filter === 'done' ? doneRecent : open.concat(doneRecent, cancelRecent);
+    const list = filter === 'open' ? openAll : filter === 'done' ? doneRecent : openAll.concat(doneRecent, cancelRecent);
     if (!orders.length) {
       $('list').innerHTML = `<div class="empty">まだ発注書が取り込まれていません。<br>下の「取り込み」から始めてください。</div>`;
       return;
@@ -11069,50 +11079,56 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const sellerOrder = [];
     orders.slice().sort((a, b) => a.importedAt - b.importedAt).forEach(o => { if (!sellerOrder.includes(o.seller)) sellerOrder.push(o.seller); });
     // 卸の切り替え（タブ）。件数は今の表示（未納品・納品済み・すべて）での数
-    const cnt = s => list.filter(o => o.seller === s).length;
-    const tabs = sellerOrder.filter(s => cnt(s) > 0 || s === sellerSel);
+    const cnt = s => list.filter(o => o.seller === s && !isDormant(o)).length;
+    const has = s => list.some(o => o.seller === s);
+    const tabs = sellerOrder.filter(s => has(s) || s === sellerSel);
     if (sellerSel !== '__all' && !sellerOrder.includes(sellerSel)) sellerSel = '__all';
-    let html = `<div class="stabs" id="stabs"><button class="stab ${sellerSel === '__all' ? 'on' : ''}" data-seller="__all">すべて<span>${list.length}</span></button>` +
+    let html = `<div class="stabs" id="stabs"><button class="stab ${sellerSel === '__all' ? 'on' : ''}" data-seller="__all">すべて<span>${list.filter(o => !isDormant(o)).length}</span></button>` +
       tabs.map(s => `<button class="stab ${sellerSel === s ? 'on' : ''}" data-seller="${esc(s)}">${esc(s)}<span>${cnt(s)}</span></button>`).join('') + '</div>';
     const t = today();
     const shown = sellerSel === '__all' ? sellerOrder : [sellerSel];
     const what = filter === 'open' ? '未納品の発注' : filter === 'done' ? '直近7日に納品済みの発注' : '表示する発注';
     if (sellerSel === '__all' && !list.length) html += `<div class="empty">${what}はありません。</div>`;
-    if (sellerSel !== '__all' && !cnt(sellerSel)) html += `<div class="empty">${esc(sellerSel)}の${what}はありません。</div>`;
+    if (sellerSel !== '__all' && !has(sellerSel)) html += `<div class="empty">${esc(sellerSel)}の${what}はありません。</div>`;
     for (const s of shown) {
       const items = list.filter(o => o.seller === s).sort((a, b) =>
         (filter === 'done' ? (b.doneAt || 0) - (a.doneAt || 0) : 0) ||
         (a.due || '9').localeCompare(b.due || '9') || a.orderedAt.localeCompare(b.orderedAt) || a.name.localeCompare(b.name, 'ja'));
       if (!items.length) continue;
-      const nOpen = items.filter(o => ['open', 'partial'].includes(statusOf(o))).length;
-      html += `<div class="group"><div class="ghead"><h2>${esc(s)}</h2><span>${filter === 'done' ? items.length + '件' : '未納品 ' + nOpen + '件'}</span></div><div class="card">`;
-      for (const o of items) {
-        const st = statusOf(o);
-        const late = (st === 'open' || st === 'partial') && o.due && o.due < t && !activeIssue(o);
-        const badges = [];
-        if (st === 'done') badges.push(`<span class="badge done">納品 ${fmtShort(o.doneAt)}</span>`);
-        if (st === 'cancelled') badges.push(`<span class="badge cancel">キャンセル${o.cancelReason ? '（' + CANCEL_REASON[o.cancelReason].replace('ため', '') + '）' : ''} ${fmtShort(o.cancelledAt)}</span>`);
-        if (st === 'partial') badges.push(`<span class="badge part">一部納品 ${o.delivered}/${o.qty}（残り${o.qty - o.delivered}）</span>`);
-        if (activeIssue(o)) badges.push(`<button class="badge btn-like ${needsAction(o) ? 'issue-open' : isHold(o) ? 'issue-hold' : 'issue-doing'}" data-act="issue">${esc(issueLabel(o))} ›</button>`);
-        if (late) badges.push(`<span class="badge late">納品指定日を過ぎています</span>`);
-        const canAct = st === 'open' || st === 'partial';
-        html += `<div class="item ${st}" data-key="${esc(o.key)}">
-          <button class="chk" data-act="check" aria-label="${st === 'done' ? 'チェックを取り消す' : '全数納品にする'}" ${st === 'cancelled' ? 'disabled' : ''}><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i></button>
-          <div class="body">
-            <div class="name">${o.source === 'arranged' ? PENCIL : ''}${esc(o.name)}</div>
-            <div class="spec">${esc(o.spec)}${o.maker ? '　' + esc(o.maker) : ''}</div>
-            <div class="meta">${badges.join('')}${o.source === 'arranged' ? arrangedNote(o) : `納品指定 ${esc(md(o.due)) || '—'}　発注 ${esc(md(o.orderedAt.slice(0, 16)))}`}</div>
-          </div>
-          <div class="side">
-            <div class="qty">${o.qty}<small> 個</small></div>
-            ${st === 'partial' || (st === 'open' && o.qty >= 2) ? `<button class="partbtn" data-act="part">一部</button>` : ''}
-            ${canAct && !activeIssue(o) ? `<button class="nobtn" data-act="nodel">届かなかった</button>` : ''}
-          </div>
-        </div>`;
-      }
-      html += '</div></div>';
+      const main = items.filter(o => !isDormant(o)), dorm = items.filter(isDormant);
+      const nOpen = main.filter(o => ['open', 'partial'].includes(statusOf(o))).length;
+      html += `<div class="group"><div class="ghead"><h2>${esc(s)}</h2><span>${filter === 'done' ? main.length + '件' : '未納品 ' + nOpen + '件'}</span></div>`;
+      if (main.length) html += `<div class="card">${main.map(o => rowHtml(o, t)).join('')}</div>`;
+      else html += `<div class="empty" style="padding:18px">${what}はありません。</div>`;
+      if (dorm.length) html += `<div class="dsub">見直し不要（届いたら受け取る）${dorm.length}件</div><div class="card dorm">${dorm.map(o => rowHtml(o, t)).join('')}</div>`;
+      html += '</div>';
     }
     $('list').innerHTML = html;
+  }
+
+  function rowHtml(o, t) {
+    const st = statusOf(o);
+    const late = (st === 'open' || st === 'partial') && o.due && o.due < t && !activeIssue(o);
+    const badges = [];
+    if (st === 'done') badges.push(`<span class="badge done">納品 ${fmtShort(o.doneAt)}</span>`);
+    if (st === 'cancelled') badges.push(`<span class="badge cancel">キャンセル${o.cancelReason ? '（' + CANCEL_REASON[o.cancelReason].replace('ため', '') + '）' : ''} ${fmtShort(o.cancelledAt)}</span>`);
+    if (st === 'partial') badges.push(`<span class="badge part">一部納品 ${o.delivered}/${o.qty}（残り${o.qty - o.delivered}）</span>`);
+    if (activeIssue(o)) badges.push(`<button class="badge btn-like ${needsAction(o) ? 'issue-open' : isHold(o) ? 'issue-hold' : isDormant(o) ? 'issue-dorm' : 'issue-doing'}" data-act="issue">${esc(issueLabel(o))} ›</button>`);
+    if (late) badges.push(`<span class="badge late">納品指定日を過ぎています</span>`);
+    const canAct = st === 'open' || st === 'partial';
+    return `<div class="item ${st}${isDormant(o) ? ' dormant' : ''}" data-key="${esc(o.key)}">
+      <button class="chk" data-act="check" aria-label="${st === 'done' ? 'チェックを取り消す' : '全数納品にする'}" ${st === 'cancelled' ? 'disabled' : ''}><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i></button>
+      <div class="body">
+        <div class="name">${o.source === 'arranged' ? PENCIL : ''}${esc(o.name)}</div>
+        <div class="spec">${esc(o.spec)}${o.maker ? '　' + esc(o.maker) : ''}</div>
+        <div class="meta">${badges.join('')}${o.source === 'arranged' ? arrangedNote(o) : `納品指定 ${esc(md(o.due)) || '—'}　発注 ${esc(md(o.orderedAt.slice(0, 16)))}`}</div>
+      </div>
+      <div class="side">
+        <div class="qty">${o.qty}<small> 個</small></div>
+        ${st === 'partial' || (st === 'open' && o.qty >= 2) ? `<button class="partbtn" data-act="part">一部</button>` : ''}
+        ${canAct && !activeIssue(o) ? `<button class="nobtn" data-act="nodel">届かなかった</button>` : ''}
+      </div>
+    </div>`;
   }
 
   $('list').addEventListener('click', e => {
@@ -11216,6 +11232,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       case 'reopen': return t + 'キャンセルを取り消し';
       case 'hold': return t + `保留（見直す日 ${e.until ? esc(md(e.until)) : 'なし'}）${e.memo ? '　理由「' + esc(e.memo) + '」' : ''}`;
       case 'unhold': return t + '保留を解除';
+      case 'dormant': return t + `見直し不要（${esc(DORMANT_REASON[e.reason] || '')}）${e.memo ? '　メモ「' + esc(e.memo) + '」' : ''}`;
       case 'partial': return t + `一部納品 ${e.count}個`;
       case 'delivered': return t + '納品（解決）';
       case 'undo': return t + '納品チェックの取り消し';
@@ -11235,6 +11252,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (cls === 'open' && is.state === 'hold') l3 = `<span class="badge issue-open">保留の見直し日</span>` + holdInfo();
     else if (cls === 'open') l3 = `<span class="badge issue-open">未対応</span>届かなかった ${fmtShort(is.flaggedAt)}`;
     else if (cls === 'hold') l3 = `<span class="badge issue-hold">保留</span>` + holdInfo();
+    else if (cls === 'dormant') l3 = `<span class="badge issue-dorm">見直し不要</span>${esc(DORMANT_REASON[is.dormant.reason] || '')}　${fmtShort(is.dormant.at)}から${is.dormant.memo ? `<div style="color:var(--sub);font-size:17px">メモ：${esc(is.dormant.memo)}</div>` : ''}`;
     else if (cls === 'doing') l3 = `<span class="badge issue-doing">${is.state === 'confirmed' ? '卸に確認済み' : '別の卸で手配済み'}</span>` +
       (is.state === 'confirmed' ? `納品予定 <b>${esc(etaText(is.eta))}</b>` : '元の卸からも後日届く予定') + (is.reason ? `　理由 ${esc(is.reason)}` : '');
     else l3 = st === 'cancelled' ? `<span class="badge cancel">キャンセル${o.cancelReason ? '・' + CANCEL_REASON[o.cancelReason].replace('ため', '') : ''}</span>${fmtShort(o.cancelledAt)}` : `<span class="badge done">納品</span>${fmtShort(o.doneAt)}（届かなかった ${fmtShort(is.flaggedAt)}）`;
@@ -11253,6 +11271,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const doing = act.filter(o => o.issue.state === 'confirmed' || o.issue.state === 'arranged').sort((a, b) => etaKey(a).localeCompare(etaKey(b)));
     const holdKey = o => (o.issue.hold && o.issue.hold.until) || '9999';
     const held = act.filter(o => isHold(o) && !holdDue(o)).sort((a, b) => holdKey(a).localeCompare(holdKey(b)));
+    const dorm = act.filter(isDormant).sort((a, b) => b.issue.dormant.at - a.issue.dormant.at);
     const closedAll = orders.filter(o => o.issue && !activeIssue(o));
     const closedAt = o => o.cancelled ? o.cancelledAt : (o.issue.resolvedAt || o.doneAt);
     const closed = closedAll.filter(o => period === 0 || withinDays(closedAt(o), period)).sort((a, b) => closedAt(b) - closedAt(a));
@@ -11260,13 +11279,19 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     h += `<div class="sec urgent"><h2>未対応<span>${open.length}件　卸への確認がまだの発注・保留の見直し日になった発注</span></h2>${open.length ? open.map(o => issCard(o, 'open')).join('') : '<div class="empty">未対応の発注はありません。</div>'}</div>`;
     h += `<div class="sec"><h2>対応中<span>${doing.length}件　確認・手配済みで、まだ届いていない発注（納品予定の順）</span></h2>${doing.length ? doing.map(o => issCard(o, 'doing')).join('') : '<div class="empty">対応中の発注はありません。</div>'}</div>`;
     h += `<div class="sec"><h2>保留<span>${held.length}件　急がないので待っている発注（見直す日の順）</span></h2>${held.length ? held.map(o => issCard(o, 'hold')).join('') : '<div class="empty">保留中の発注はありません。</div>'}</div>`;
+    h += `<details class="closed-sec dorm-sec" ${dormOpen ? 'open' : ''}><summary>見直し不要（届いたら受け取る）${dorm.length}件</summary>
+      <p style="margin:0 0 10px;color:var(--sub);font-size:17px">届いていないけれど、もう追わない発注です。卸側で発注が残っていて、忘れた頃に届くことがあります。届いたら、納品チェックでふだんどおりチェックしてください。</p>
+      ${dorm.length ? dorm.map(o => issCard(o, 'dormant')).join('') : '<div class="empty">見直し不要の発注はありません。</div>'}</details>`;
     h += `<details class="closed-sec" ${closedOpen ? 'open' : ''}><summary>解決済み（${period ? '直近' + period + '日' : 'すべて'}）${closed.length}件</summary>
       <div class="period">${[[7, '直近7日'], [30, '直近30日'], [0, 'すべて']].map(([d, t]) => `<button class="chip ${period === d ? 'on' : ''}" data-period="${d}">${t}</button>`).join('')}</div>
       ${closed.length ? closed.map(o => issCard(o, 'closed')).join('') : '<div class="empty">この期間に解決した発注はありません。</div>'}</details>`;
     $('issues').innerHTML = h;
   }
-  let closedOpen = false;
-  $('issues').addEventListener('toggle', e => { if (e.target.matches('details.closed-sec')) closedOpen = e.target.open; }, true);
+  let closedOpen = false, dormOpen = false;
+  $('issues').addEventListener('toggle', e => {
+    if (e.target.matches('details.dorm-sec')) dormOpen = e.target.open;
+    else if (e.target.matches('details.closed-sec')) closedOpen = e.target.open;
+  }, true);
   $('issues').addEventListener('click', e => {
     const p = e.target.closest('[data-period]');
     if (p) { period = +p.dataset.period; closedOpen = true; renderIssues(); return; }
@@ -11296,11 +11321,22 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         <button type="button" class="btn" id="aArrange">別の卸で手配した<small>手配先の発注を追加し、元の発注の扱いを選びます</small></button>
         <button type="button" class="btn danger" id="aCancel">キャンセルした<small>この発注を閉じます。記録は残ります</small></button>
         ${is.state === 'hold' ? '<button type="button" class="btn" id="aUnhold">保留を解除する<small>保留にする前の状態に戻します</small></button>' : '<button type="button" class="btn" id="aHold">保留にする（急がない）<small>いったん待ちます。見直す日を決めておくと、その日に「未対応」に戻ります</small></button>'}
-      </div>` + logs + `<div class="actions">${is.state === 'open' && is.log.length === 1 ? '<button type="button" class="btn danger" id="aUnflag">「届かなかった」を取り消す</button>' : ''}<button type="button" class="btn" data-close>閉じる</button></div>`);
+        ${is.state === 'dormant' ? '' : '<button type="button" class="btn" id="aDormant">見直し不要にする<small>他の卸から届いた・不要になったので、もう追いません。届いたら受け取れるよう一覧には残します</small></button>'}
+      </div>` + logs + `<div class="actions">${is.state === 'dormant' ? '<button type="button" class="btn danger" id="aUndorm">見直し不要を取り消す</button>' : ''}${is.state === 'open' && is.log.length === 1 ? '<button type="button" class="btn danger" id="aUnflag">「届かなかった」を取り消す</button>' : ''}<button type="button" class="btn" data-close>閉じる</button></div>`);
     $('aConfirm').addEventListener('click', () => confirmDialog(o));
     $('aArrange').addEventListener('click', () => arrangeDialog(o));
     $('aCancel').addEventListener('click', () => cancelDialog(o));
     if ($('aHold')) $('aHold').addEventListener('click', () => holdDialog(o));
+    if ($('aDormant')) $('aDormant').addEventListener('click', () => dormantDialog(o));
+    if ($('aUndorm')) $('aUndorm').addEventListener('click', async () => {
+      // 押し間違いを直すためのもの。見直し不要にした記録も残さない
+      const d = is.dormant;
+      is.state = (d && d.prev) || 'open';
+      if (d && Number.isInteger(d.logLen)) is.log = is.log.slice(0, d.logLen);
+      if (d && d.prevHold) is.hold = d.prevHold;
+      delete is.dormant;
+      await putOrder(o); closeDialog(); refresh(); toast('見直し不要を取り消しました（記録には残りません）');
+    });
     if ($('aUnhold')) $('aUnhold').addEventListener('click', async () => {
       const now = Date.now();
       is.state = (is.hold && is.hold.prev) || 'open'; delete is.hold;
@@ -11372,7 +11408,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       const r = readEta();
       if (r.error) { $('oMsg').textContent = r.error; $('oMsg').classList.add('warn'); return; }
       const now = Date.now();
-      delete is.hold; is.state = 'confirmed'; is.eta = r.eta; is.reason = getReason() || ''; is.memo = $('oMemo').value.trim();
+      delete is.hold; delete is.dormant; is.state = 'confirmed'; is.eta = r.eta; is.reason = getReason() || ''; is.memo = $('oMemo').value.trim();
       issueLog(o, { at: now, type: 'confirm', eta: r.eta, reason: is.reason, memo: is.memo });
       await putOrder(o); closeDialog(); refresh(); toast('卸に確認した内容を記録しました');
     });
@@ -11451,7 +11487,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         importedAt: now, printedAt: '', delivered: 0, checks: [], issue: null, cancelled: false, schema: SCHEMA }));
       o.children = (o.children || []).concat(kids.map(k => k.key));
       issueLog(o, { at: now, type: 'arrange', list: plan.map(x => ({ seller: x.seller, qty: x.qty, eta: x.eta })), memo });
-      delete o.issue.hold; o.issue.state = 'arranged';
+      delete o.issue.hold; delete o.issue.dormant; o.issue.state = 'arranged';
       if (keep === 'cancel') doCancel(o, now, 'arranged', '');
       const tx = db.transaction('orders', 'readwrite'); const os = tx.objectStore('orders');
       os.put(o); kids.forEach(k => os.put(k)); await done(tx);
@@ -11478,10 +11514,35 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       if (u === '7' || u === '14') until = addDays(+u);
       else if (u === 'pick') { const v = $('hDate').value; if (!v) { $('hMsg').textContent = '日付を選んでください。'; $('hMsg').classList.add('warn'); return; } until = v.replace(/-/g, '/'); }
       const now = Date.now(), memo = $('hMemo').value.trim();
-      is.hold = { at: now, until, memo, prev: is.state === 'hold' ? (is.hold && is.hold.prev) || 'open' : is.state };
+      const base = is.state === 'hold' ? (is.hold && is.hold.prev) || 'open' : is.state === 'dormant' ? (is.dormant && is.dormant.prev) || 'open' : is.state;
+      delete is.dormant;
+      is.hold = { at: now, until, memo, prev: base === 'hold' || base === 'dormant' ? 'open' : base };
       is.state = 'hold';
       issueLog(o, { at: now, type: 'hold', until, memo });
       await putOrder(o); closeDialog(); refresh(); toast('保留にしました' + (until ? `（${md(until)}に見直し）` : ''));
+    });
+  }
+
+  // 見直し不要にする
+  function dormantDialog(o) {
+    const is = o.issue;
+    dialog(`<h3>${esc(o.name)}</h3><p>この発注はもう追いません。キャンセルはしていないので、${esc(o.seller)}から後日届くことがあります。届いたら受け取れるよう、納品チェックの一覧には「見直し不要」として残します。</p>
+      <div class="dlabel">理由</div>
+      ${opts('dReason', Object.entries(DORMANT_REASON), (o.children || []).length ? 'elsewhere' : null)}
+      <div class="dlabel">メモ</div>
+      <textarea id="dMemo" placeholder="例：東邦薬品から届いたので追わない"></textarea>
+      <p class="preview" id="dMsg"></p>
+      <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="dSave">見直し不要にする</button></div>`);
+    const getReason = bindOpts('dReason');
+    $('dSave').addEventListener('click', async () => {
+      const reason = getReason();
+      if (!reason) { $('dMsg').textContent = '理由を選んでください。'; $('dMsg').classList.add('warn'); return; }
+      const now = Date.now();
+      is.dormant = { at: now, reason, memo: $('dMemo').value.trim(), prev: is.state === 'hold' ? 'hold' : is.state, prevHold: is.hold || null, logLen: is.log.length };
+      delete is.hold;
+      is.state = 'dormant';
+      issueLog(o, { at: now, type: 'dormant', reason, memo: is.dormant.memo });
+      await putOrder(o); closeDialog(); refresh(); toast('見直し不要にしました。届いたら納品チェックでチェックしてください');
     });
   }
 
