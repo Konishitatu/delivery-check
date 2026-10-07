@@ -244,7 +244,7 @@ ul.plan small{color:var(--sub);font-size:16px}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-3</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-4</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -288,7 +288,7 @@ ul.plan small{color:var(--sub);font-size:16px}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.07-3 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.07-4 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -10631,6 +10631,20 @@ const HCQ = (() => {
     }
     return mode === 'inflate' ? jsInflate(u8) : jsDeflate(u8);
   }
+  // 起動時の点検：標準の展開がこのブラウザで動くかを、小さなデータで先に確かめておく。
+  // 動かなければ最初から予備の処理を使うので、PDFを読み込むときの待ち時間（4秒）がなくなる。
+  async function selfTest() {
+    if (engine.inflate !== '標準') return engine;
+    const sample = Uint8Array.from([120, 156, 43, 73, 45, 46, 1, 0, 4, 93, 1, 193]); // "test" を圧縮したもの
+    try {
+      if (typeof DecompressionStream !== 'function' || typeof CompressionStream !== 'function') throw new Error('標準機能なし');
+      const out = await Promise.race([nativeZ(sample, 'inflate'), timeout(1500, '標準の展開（起動時の点検）')]);
+      if (String.fromCharCode(...out) !== 'test') throw new Error('標準の展開の結果が正しくありません');
+    } catch (e) {
+      engine.inflate = engine.deflate = '予備'; engine.inflateReason = e.message;
+    }
+    return engine;
+  }
   // 進み具合を画面に伝える（画面側で HCQ.onStep を設定する）
   const step = t => { if (typeof api.onStep === 'function') api.onStep(t); };
   const tick = () => new Promise(r => setTimeout(r, 0)); // 画面を描き直す時間を作る
@@ -10847,7 +10861,7 @@ const HCQ = (() => {
     return new TextDecoder().decode(await zlib(all, 'inflate'));
   }
 
-  const api = { readPdf, buildOrders, makeChunks, joinChunks, ReadError, LAYOUT, engine, onStep: null, _jsInflate: jsInflate, _jsDeflate: jsDeflate };
+  const api = { readPdf, buildOrders, makeChunks, joinChunks, selfTest, ReadError, LAYOUT, engine, onStep: null, _jsInflate: jsInflate, _jsDeflate: jsDeflate };
   return api;
 })();
 if (typeof module !== 'undefined') module.exports = HCQ;
@@ -10859,7 +10873,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.07-3';
+  const VERSION = 'v2026.10.07-4';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -11333,20 +11347,22 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     orders.forEach(x => { if (x.source !== 'arranged' && !sellers.includes(x.seller)) sellers.push(x.seller); });
     const choices = sellers.filter(s => s !== o.seller);
     const plan = []; // 手配する内容 [{seller, qty, eta}]
-    const nums = []; for (let n = 1; n <= 10; n++) nums.push([String(n), n + '個']);
-    nums.push(['__n', '11個以上']);
-    const first = rest <= 10 ? String(rest) : '__n';
-    dialog(`<h3>${esc(o.name)}</h3><p>${esc(o.seller)}の発注（残り${rest}個）を、別の卸で手配した内容を記録します。複数の卸に分けて頼んだ場合は、1つずつ「一覧に加える」を押してください。</p>
+    const QMAX = 3; // ボタンで選べる数（これより多いときは入力）
+    const nums = []; for (let n = 1; n <= QMAX; n++) nums.push([String(n), n + '個']);
+    nums.push(['__n', (QMAX + 1) + '個以上']);
+    const first = rest <= QMAX ? String(rest) : '__n';
+    dialog(`<h3>${esc(o.name)}</h3><p>${esc(o.seller)}の発注（残り${rest}個）を、別の卸で手配した内容を記録します。複数の卸に分けて頼んだ場合は、1つ目の卸を選んだあとに「他の卸も追加する」を押して、次の卸を選んでください。</p>
       <div class="dlabel">手配先</div>
       ${opts('aSeller', choices.map(s => [s, esc(s)]).concat([['__other', 'その他']]), null)}
       <p id="otherRow" hidden><input type="text" id="aOther" placeholder="手配先の名前"></p>
       <div class="dlabel">手配した数</div>
       ${opts('aQtyOpts', nums, first)}
-      <p id="qtyRow" ${first === '__n' ? '' : 'hidden'}><input type="number" id="aQty" inputmode="numeric" min="1" value="${rest > 10 ? rest : ''}" style="font-size:22px;width:6em;padding:8px;border:2px solid var(--rule);border-radius:10px"> 個</p>
+      <p id="qtyRow" ${first === '__n' ? '' : 'hidden'}><input type="number" id="aQty" inputmode="numeric" min="1" value="${rest > QMAX ? rest : ''}" style="font-size:22px;width:6em;padding:8px;border:2px solid var(--rule);border-radius:10px"> 個</p>
       ${etaHtml('e', null)}
-      <p><button type="button" class="btn" id="aAdd">＋ 一覧に加える</button></p>
-      <div class="dlabel">手配する内容</div>
-      <ul class="plan" id="aPlan"><li class="none">まだありません</li></ul>
+      <p><button type="button" class="btn" id="aAdd">＋ 他の卸も追加する</button></p>
+      <div id="planBox" hidden><div class="dlabel">追加した卸</div>
+      <ul class="plan" id="aPlan"></ul>
+      <p style="font-size:16px;color:var(--sub);margin-top:-6px">上で今選んでいる卸も、「記録する」を押すと一緒に記録されます。</p></div>
       <div class="dlabel">元の${esc(o.seller)}の発注は</div>
       ${opts('aKeep', [['cancel', 'キャンセルした'], ['keep', '引き続き待つ（後日届く予定）']], null)}
       <div class="dlabel">メモ</div>
@@ -11361,8 +11377,9 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const warn = t => { $('aMsg').textContent = t; $('aMsg').classList.add('warn'); };
     const renderPlan = () => {
       const total = plan.reduce((a, x) => a + x.qty, 0);
+      $('planBox').hidden = !plan.length;
       $('aPlan').innerHTML = plan.length ? plan.map((x, i) => `<li><span>${esc(x.seller)}　<b>${x.qty}個</b>　<small>予定 ${esc(etaText(x.eta))}</small></span><button type="button" class="btn danger" data-del="${i}">削除</button></li>`).join('') +
-        `<li class="sum">合計 ${total}個（元の発注の残り ${rest}個）</li>` : '<li class="none">まだありません</li>';
+        `<li class="sum">ここまでの合計 ${total}個（元の発注の残り ${rest}個）</li>` : '';
     };
     // 選んでいる内容を一覧に加える（加えたら true、何も選んでいなければ false、入力に不足があれば null）
     const addCurrent = () => {
@@ -11378,14 +11395,14 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       $('aMsg').textContent = ''; $('aMsg').classList.remove('warn'); renderPlan();
       // 次の手配先のために、数の選択を「まだ手配していない残りの数」にしておく
       const left = rest - plan.reduce((a, x) => a + x.qty, 0);
-      if (left >= 1 && left <= 10) getQtyOpt.set(String(left)); else if (left > 10) { getQtyOpt.set('__n'); $('aQty').value = left; } else getQtyOpt.set(null);
+      if (left >= 1 && left <= QMAX) getQtyOpt.set(String(left)); else if (left > QMAX) { getQtyOpt.set('__n'); $('aQty').value = left; } else getQtyOpt.set(null);
       return true;
     };
     $('aAdd').addEventListener('click', () => { if (addCurrent() === false) warn('先に手配先を選んでください。'); });
     $('aPlan').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (b) { plan.splice(+b.dataset.del, 1); renderPlan(); } });
     $('aSave').addEventListener('click', async () => {
-      if (getSeller()) { if (addCurrent() === null) return; }   // 選んだまま「一覧に加える」を押し忘れていても加える
-      if (!plan.length) return warn('手配先を選んで「一覧に加える」を押してください。');
+      if (getSeller()) { if (addCurrent() === null) return; }   // 今選んでいる卸も一緒に記録する
+      if (!plan.length) return warn('手配先を選んでください。');
       const keep = getKeep();
       if (!keep) return warn('元の発注をどうしたかを選んでください。');
       const now = Date.now(), memo = $('aMemo').value.trim(), stamp = nowStamp();
