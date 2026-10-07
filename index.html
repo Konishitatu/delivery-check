@@ -163,6 +163,9 @@ details.closed-sec summary{font-size:22px;font-weight:700;cursor:pointer;padding
 ul.log{list-style:none;margin:6px 0 12px;padding:0;font-size:17px;color:var(--sub);border-top:1px solid var(--rule)}
 ul.log li{padding:6px 0;border-bottom:1px solid var(--rule)}
 ul.log b{color:var(--ink)}
+.umsg{min-height:1.4em;font-weight:700;color:var(--accent)}
+.umsg.warn{color:var(--late)}
+.bknote{display:block;width:100%;text-align:left;border:1px solid #E8C98A;background:var(--part-bg);color:var(--part);border-radius:12px;padding:12px 18px;margin-bottom:14px;font-size:18px;font-weight:700}
 
 </style>
 </head>
@@ -181,6 +184,7 @@ ul.log b{color:var(--ink)}
 <main>
   <!-- ========== 納品チェック ========== -->
   <div class="view on" id="v-check">
+    <button class="bknote" id="bkNote" hidden></button>
     <div class="filters" id="filters">
       <button class="chip on" data-f="open">未納品<span class="n" id="n-open"></span></button>
       <button class="chip" data-f="done">納品済み（直近7日）<span class="n" id="n-done"></span></button>
@@ -232,6 +236,37 @@ ul.log b{color:var(--ink)}
   <!-- ========== その他 ========== -->
   <div class="view" id="v-more">
     <section class="box">
+      <h2>アプリの版</h2>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-1</b></p>
+      <button class="btn primary" id="upd">最新版を確認して読み込む</button>
+      <p class="umsg" id="updMsg"></p>
+      <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
+    </section>
+
+    <section class="box">
+      <h2>バックアップ</h2>
+      <p style="margin-top:0">最後のバックアップ：<b id="lastBk">まだありません</b></p>
+      <button class="btn primary" id="bkSave">バックアップを保存する</button>
+      <ol class="howto" style="margin-top:12px">
+        <li>「バックアップを保存する」を押す</li>
+        <li>出てきた画面で「"ファイル"に保存」を選ぶ</li>
+        <li>保存先は「このiPad内」を選び、「保存」を押す</li>
+      </ol>
+      <p style="color:var(--sub);font-size:17px">週に1回程度の保存がおすすめです。保存したファイルにはこのアプリのデータ（卸名・品名・数量・チェックの記録）が入っています。iCloudなど外部の保存先は選ばないでください。</p>
+      <div style="border-top:1px solid var(--rule);margin-top:14px;padding-top:14px">
+        <h2 style="font-size:20px">バックアップから戻す</h2>
+        <p style="margin-top:0;color:var(--sub);font-size:17px">データが消えてしまったときに使います。保存しておいたバックアップのファイルを選んでください。</p>
+        <button class="btn" id="bkLoad">バックアップのファイルを選ぶ</button>
+        <input type="file" id="bkFile" accept=".json,application/json" hidden>
+      </div>
+    </section>
+
+    <section class="box">
+      <h2>保存しているデータ</h2>
+      <dl class="kv" id="stats"></dl>
+      <p style="color:var(--sub);font-size:17px">データはこのiPadの中だけに保存され、外部には送信されません。</p>
+    </section>
+    <section class="box">
       <h2>ホーム画面への追加方法</h2>
       <ol class="howto">
         <li>Safariでこのページを開く</li>
@@ -242,16 +277,11 @@ ul.log b{color:var(--ink)}
       </ol>
     </section>
     <section class="box">
-      <h2>保存しているデータ</h2>
-      <dl class="kv" id="stats"></dl>
-      <p style="color:var(--sub);font-size:17px">データはこのiPadの中だけに保存され、外部には送信されません。</p>
-    </section>
-    <section class="box">
       <h2>すべてのデータを消す</h2>
-      <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消したデータは元に戻せません。</p>
+      <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.09.30-1 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.07-1 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -10678,7 +10708,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.09.30-1';
+  const VERSION = 'v2026.10.07-1';
   const SCHEMA = 2;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -10842,6 +10872,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   }
 
   function renderList() {
+    renderBackupInfo();
     const open = orders.filter(o => ['open', 'partial'].includes(statusOf(o)));
     const doneRecent = orders.filter(o => statusOf(o) === 'done' && withinDays(o.doneAt || o.importedAt, DONE_DAYS));
     const cancelRecent = orders.filter(o => o.cancelled && withinDays(o.cancelledAt, DONE_DAYS));
@@ -11291,12 +11322,13 @@ if (typeof module !== 'undefined') module.exports = HCQ;
 
   /* ---------- その他 ---------- */
   function renderStats() {
+    renderBackupInfo();
     const open = orders.filter(o => ['open', 'partial'].includes(statusOf(o))).length;
     const iss = orders.filter(o => o.issue).length, act = orders.filter(activeIssue).length;
     $('stats').innerHTML = `<dt>発注の件数</dt><dd>${orders.length}件（うち未納品 ${open}件）</dd><dt>届かなかった記録</dt><dd>${iss}件（うち対応中 ${act}件）</dd><dt>取り込みの回数</dt><dd>${imports.length}回</dd><dt>アプリの版</dt><dd>${VERSION}</dd><dt>開き方</dt><dd>${isStandalone() ? 'ホーム画面のアプリ' : 'Safari（ホーム画面への追加がおすすめ）'}</dd>`;
   }
   $('wipe').onclick = () => {
-    dialog(`<h3>すべてのデータを消しますか？</h3><p>取り込んだ発注、納品チェック、取り込みの記録がすべて消えます。元には戻せません。</p>
+    dialog(`<h3>すべてのデータを消しますか？</h3><p>取り込んだ発注、納品チェック、未納品対応、取り込みの記録がすべて消えます。バックアップがなければ、元には戻せません。</p>
       <div class="actions"><button class="btn" data-close>やめる</button><button class="btn danger" id="dWipe">消す</button></div>`);
     $('dWipe').onclick = async () => {
       const tx = db.transaction(['orders', 'imports'], 'readwrite');
@@ -11305,6 +11337,116 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       toast('すべてのデータを消しました');
     };
   };
+  /* ---------- 最新版の確認 ----------
+     ホーム画面のアプリには再読み込みボタンがないため、ここで新しい版を取りに行く。
+     データはiPadの中にあるので、読み込み直しても消えない。 */
+  $('upd').addEventListener('click', async () => {
+    const msg = $('updMsg'); msg.classList.remove('warn'); msg.textContent = '確認しています…';
+    try {
+      const r = await fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' });
+      const t = await r.text();
+      const m = t.match(/const VERSION = '([^']+)'/);
+      if (!r.ok || !m) throw new Error('版が読み取れませんでした');
+      if (m[1] === VERSION) { msg.textContent = 'これが最新版です（' + VERSION + '）。'; return; }
+      msg.textContent = '新しい版 ' + m[1] + ' を読み込みます…';
+      setTimeout(() => location.replace(location.pathname + '?v=' + Date.now()), 600);
+    } catch (e) {
+      msg.textContent = '確認できませんでした。インターネットにつながっているか確認してください。（' + e.message + '）'; msg.classList.add('warn');
+    }
+  });
+  // 読み込み直したときにアドレスに付けた印を消しておく
+  if (/[?&](v|check)=/.test(location.search)) history.replaceState(null, '', location.pathname);
+
+  /* ---------- バックアップ ----------
+     形式：JSONファイル。app='nohin-check'、format=1、schema=データの形の版 */
+  const BK_DAYS = 7; // この日数を過ぎたら、バックアップを促す
+  let lastBackup = null;
+  async function getMeta(k) { const r = await req(db.transaction('meta').objectStore('meta').get(k)); return r ? r.v : null; }
+  async function setMeta(k, v) { const tx = db.transaction('meta', 'readwrite'); tx.objectStore('meta').put({ k, v }); await done(tx); }
+  const daysSince = t => Math.floor((Date.now() - t) / 86400000);
+
+  function renderBackupInfo() {
+    $('lastBk').textContent = lastBackup ? `${fmt(lastBackup)}（${daysSince(lastBackup)}日前）` : 'まだありません';
+    const need = orders.length > 0 && (!lastBackup || daysSince(lastBackup) >= BK_DAYS);
+    $('bkNote').hidden = !need;
+    if (need) $('bkNote').textContent = lastBackup
+      ? `最後のバックアップから${daysSince(lastBackup)}日たっています。「その他」のタブで保存してください ›`
+      : 'まだバックアップがありません。「その他」のタブで保存してください ›';
+  }
+  $('bkNote').addEventListener('click', () => showView('more'));
+
+  $('bkSave').addEventListener('click', async () => {
+    const now = Date.now();
+    const data = { app: 'nohin-check', format: 1, schema: SCHEMA, version: VERSION, exportedAt: now, orders, imports };
+    const d = new Date(now);
+    const name = `納品チェック_バックアップ_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const file = new File([blob], name, { type: 'application/json' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: name });   // iPad：共有の画面から「"ファイル"に保存」
+      } else {
+        const a = document.createElement('a');                   // パソコンなど：そのままダウンロード
+        a.href = URL.createObjectURL(blob); a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') { toast('バックアップの保存をやめました'); return; }
+      toast('バックアップを保存できませんでした：' + e.message); return;
+    }
+    lastBackup = now; await setMeta('lastBackup', now);
+    renderBackupInfo(); toast('バックアップを保存しました（' + orders.length + '件）');
+  });
+
+  // バックアップから戻す
+  $('bkLoad').addEventListener('click', () => $('bkFile').click());
+  $('bkFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    let data;
+    try { data = JSON.parse(await f.text()); } catch (err) { return toast('このファイルは読み込めませんでした（バックアップのファイルではないようです）'); }
+    if (!data || data.app !== 'nohin-check' || !Array.isArray(data.orders)) return toast('このファイルは納品チェックのバックアップではありません');
+    if ((data.schema || 1) > SCHEMA) return toast('新しい版のアプリで作ったバックアップです。先に「最新版を確認して読み込む」を押してください');
+    const bOrders = data.orders.map(upgrade), bImports = Array.isArray(data.imports) ? data.imports : [];
+    dialog(`<h3>バックアップから戻す</h3>
+      <dl class="kv" style="margin:8px 0 14px"><dt>ファイル</dt><dd style="word-break:break-all">${esc(f.name)}</dd><dt>保存した日時</dt><dd>${fmt(data.exportedAt)}</dd>
+      <dt>中の発注</dt><dd>${bOrders.length}件</dd><dt>今のiPadの発注</dt><dd>${orders.length}件</dd></dl>
+      <div class="bigacts">
+        <button type="button" class="btn" id="rMerge">今のデータに合わせる（おすすめ）<small>今のデータを残したまま、バックアップにしかない発注を足します。同じ発注は、新しく操作したほうを残します</small></button>
+        <button type="button" class="btn danger" id="rReplace">今のデータを置き換える<small>今のデータをすべて消して、バックアップの内容にします</small></button>
+      </div>
+      <div class="actions"><button type="button" class="btn" data-close>やめる</button></div>`);
+    $('rMerge').addEventListener('click', () => restore(bOrders, bImports, false));
+    $('rReplace').addEventListener('click', () => restore(bOrders, bImports, true));
+  });
+  // 最後に操作した時刻（合わせるときに、新しいほうを残すため）
+  const lastTouch = o => Math.max(o.importedAt || 0, o.lastCheckedAt || 0, o.doneAt || 0, o.cancelledAt || 0,
+    ...(o.issue && o.issue.log ? o.issue.log.map(x => x.at || 0) : [0]));
+  async function restore(bOrders, bImports, replace) {
+    const tx = db.transaction(['orders', 'imports'], 'readwrite');
+    const os = tx.objectStore('orders'), is = tx.objectStore('imports');
+    let added = 0, updated = 0, kept = 0;
+    if (replace) {
+      os.clear(); is.clear();
+      bOrders.forEach(o => os.put(o)); bImports.forEach(l => is.put(l));
+      added = bOrders.length;
+    } else {
+      const cur = new Map(orders.map(o => [o.key, o]));
+      bOrders.forEach(o => {
+        const c = cur.get(o.key);
+        if (!c) { os.put(o); added++; }
+        else if (lastTouch(o) > lastTouch(c)) { os.put(o); updated++; }
+        else kept++;
+      });
+      const seen = new Set(imports.map(l => l.at + '|' + l.printedAt));
+      bImports.forEach(l => { if (!seen.has(l.at + '|' + l.printedAt)) { const x = { ...l }; delete x.id; is.add(x); } });
+    }
+    await done(tx);
+    await loadAll(); closeDialog(); render();
+    toast(replace ? `バックアップの内容に置き換えました（${added}件）` : `戻しました：追加 ${added}件、更新 ${updated}件、そのまま ${kept}件`);
+  }
+
   const isStandalone = () => window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 
   /* ---------- 予期しない不具合の表示 ---------- */
@@ -11317,6 +11459,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     try {
       db = await openDb();
       await loadAll();
+      lastBackup = await getMeta('lastBackup');
       if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     } catch (e) {
       document.querySelector('main').innerHTML = '<div class="err">データの保存場所を開けませんでした。Safariの「プライベートブラウズ」になっていないか確認してください。（' + esc(e.message) + '）</div>';
