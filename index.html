@@ -170,6 +170,13 @@ ul.plan li.none{color:var(--sub)}
 ul.plan li.sum{justify-content:flex-end;font-weight:700;color:var(--sub)}
 ul.plan .btn{min-height:44px;padding:4px 14px;font-size:17px}
 ul.plan small{color:var(--sub);font-size:16px}
+.badge.issue-hold{background:#F1ECDC;color:#6B5B2E}
+.iss.hold{border-left-color:#B9A66A}
+.stabs{display:flex;gap:4px;overflow-x:auto;border-bottom:2px solid var(--rule);margin:0 0 16px;-webkit-overflow-scrolling:touch}
+.stab{border:0;background:none;padding:12px 18px 10px;min-height:56px;font-size:19px;font-weight:700;color:var(--sub);border-bottom:4px solid transparent;margin-bottom:-2px;white-space:nowrap}
+.stab span{display:inline-block;margin-left:8px;min-width:28px;padding:0 8px;border-radius:999px;background:var(--rule);color:var(--ink);font-size:16px;line-height:26px}
+.stab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.stab.on span{background:var(--accent);color:#fff}
 .umsg{min-height:1.4em;font-weight:700;color:var(--accent)}
 .umsg.warn{color:var(--late)}
 .bknote{display:block;width:100%;text-align:left;border:1px solid #E8C98A;background:var(--part-bg);color:var(--part);border-radius:12px;padding:12px 18px;margin-bottom:14px;font-size:18px;font-weight:700}
@@ -244,7 +251,7 @@ ul.plan small{color:var(--sub);font-size:16px}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-4</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-5</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -288,7 +295,7 @@ ul.plan small{color:var(--sub);font-size:16px}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.07-4 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.07-5 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -10873,7 +10880,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.07-4';
+  const VERSION = 'v2026.10.07-5';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -10925,6 +10932,10 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   // 対応中の未納品か（届かなかったを押して、まだ届いていない・キャンセルでもない）
   const activeIssue = o => !!(o.issue && !o.issue.resolvedAt && !o.cancelled && statusOf(o) !== 'done');
   const issueLog = (o, entry) => { if (o.issue) o.issue.log.push(entry); };
+  // 保留：急がないので、いったん待つ。見直す日を決めた場合、その日になったら「未対応」に戻して知らせる
+  const isHold = o => activeIssue(o) && o.issue.state === 'hold';
+  const holdDue = o => isHold(o) && o.issue.hold && o.issue.hold.until && o.issue.hold.until <= today();
+  const needsAction = o => activeIssue(o) && (o.issue.state === 'open' || holdDue(o));
 
   let orders = [], imports = [];
   async function loadAll() {
@@ -11002,12 +11013,12 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const l = imports[0];
     $('lastImport').innerHTML = l ? `最終取り込み <b>${fmtShort(l.at)}</b>（発注書の出力 ${esc(md(l.printedAt))}）` : 'まだ取り込みがありません';
     document.documentElement.style.setProperty('--hh', $('hdr').offsetHeight + 'px');
-    const n = orders.filter(o => activeIssue(o) && o.issue.state === 'open').length;
+    const n = orders.filter(needsAction).length;
     $('issueCnt').textContent = n; $('issueCnt').hidden = n === 0;
   }
 
   /* ---------- 納品チェックの一覧 ---------- */
-  let filter = 'open';
+  let filter = 'open', sellerSel = '__all';
   $('filters').addEventListener('click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
     filter = b.dataset.f;
@@ -11032,6 +11043,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (is.state === 'open') return '届かなかった・未対応';
     if (is.state === 'confirmed') return '卸に確認済み　予定 ' + etaText(is.eta);
     if (is.state === 'arranged') return '別の卸で手配済み・元の卸からも届く予定';
+    if (is.state === 'hold') return holdDue(o) ? '保留の見直し日になりました' : '保留中' + (is.hold && is.hold.until ? '（見直し ' + md(is.hold.until) + '）' : '');
     return '';
   }
   // 手配でできた行の説明（元の発注）
@@ -11049,16 +11061,25 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     $('n-done').textContent = doneRecent.length + '件';
     $('n-all').textContent = (open.length + doneRecent.length + cancelRecent.length) + '件';
     const list = filter === 'open' ? open : filter === 'done' ? doneRecent : open.concat(doneRecent, cancelRecent);
-    if (!list.length) {
-      $('list').innerHTML = `<div class="empty">${filter === 'open' ? (orders.length ? '未納品の発注はありません。' : 'まだ発注書が取り込まれていません。<br>下の「取り込み」から始めてください。') : '表示する発注はありません。'}</div>`;
+    if (!orders.length) {
+      $('list').innerHTML = `<div class="empty">まだ発注書が取り込まれていません。<br>下の「取り込み」から始めてください。</div>`;
       return;
     }
     // 卸の並びは、最初に取り込んだ順
     const sellerOrder = [];
     orders.slice().sort((a, b) => a.importedAt - b.importedAt).forEach(o => { if (!sellerOrder.includes(o.seller)) sellerOrder.push(o.seller); });
+    // 卸の切り替え（タブ）。件数は今の表示（未納品・納品済み・すべて）での数
+    const cnt = s => list.filter(o => o.seller === s).length;
+    const tabs = sellerOrder.filter(s => cnt(s) > 0 || s === sellerSel);
+    if (sellerSel !== '__all' && !sellerOrder.includes(sellerSel)) sellerSel = '__all';
+    let html = `<div class="stabs" id="stabs"><button class="stab ${sellerSel === '__all' ? 'on' : ''}" data-seller="__all">すべて<span>${list.length}</span></button>` +
+      tabs.map(s => `<button class="stab ${sellerSel === s ? 'on' : ''}" data-seller="${esc(s)}">${esc(s)}<span>${cnt(s)}</span></button>`).join('') + '</div>';
     const t = today();
-    let html = '';
-    for (const s of sellerOrder) {
+    const shown = sellerSel === '__all' ? sellerOrder : [sellerSel];
+    const what = filter === 'open' ? '未納品の発注' : filter === 'done' ? '直近7日に納品済みの発注' : '表示する発注';
+    if (sellerSel === '__all' && !list.length) html += `<div class="empty">${what}はありません。</div>`;
+    if (sellerSel !== '__all' && !cnt(sellerSel)) html += `<div class="empty">${esc(sellerSel)}の${what}はありません。</div>`;
+    for (const s of shown) {
       const items = list.filter(o => o.seller === s).sort((a, b) =>
         (filter === 'done' ? (b.doneAt || 0) - (a.doneAt || 0) : 0) ||
         (a.due || '9').localeCompare(b.due || '9') || a.orderedAt.localeCompare(b.orderedAt) || a.name.localeCompare(b.name, 'ja'));
@@ -11072,7 +11093,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         if (st === 'done') badges.push(`<span class="badge done">納品 ${fmtShort(o.doneAt)}</span>`);
         if (st === 'cancelled') badges.push(`<span class="badge cancel">キャンセル${o.cancelReason ? '（' + CANCEL_REASON[o.cancelReason].replace('ため', '') + '）' : ''} ${fmtShort(o.cancelledAt)}</span>`);
         if (st === 'partial') badges.push(`<span class="badge part">一部納品 ${o.delivered}/${o.qty}（残り${o.qty - o.delivered}）</span>`);
-        if (activeIssue(o)) badges.push(`<button class="badge btn-like ${o.issue.state === 'open' ? 'issue-open' : 'issue-doing'}" data-act="issue">${esc(issueLabel(o))} ›</button>`);
+        if (activeIssue(o)) badges.push(`<button class="badge btn-like ${needsAction(o) ? 'issue-open' : isHold(o) ? 'issue-hold' : 'issue-doing'}" data-act="issue">${esc(issueLabel(o))} ›</button>`);
         if (late) badges.push(`<span class="badge late">納品指定日を過ぎています</span>`);
         const canAct = st === 'open' || st === 'partial';
         html += `<div class="item ${st}" data-key="${esc(o.key)}">
@@ -11095,6 +11116,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   }
 
   $('list').addEventListener('click', e => {
+    const st = e.target.closest('[data-seller]');
+    if (st) { sellerSel = st.dataset.seller; renderList(); window.scrollTo(0, 0); return; }
     const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
     const key = b.closest('.item').dataset.key;
     const o = orderByKey(key); if (!o) return;
@@ -11191,6 +11214,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       case 'arrange': return t + (e.list ? e.list.map(x => `${esc(x.seller)}で${x.qty}個${x.eta ? '（予定 ' + esc(etaText(x.eta)) + '）' : ''}`).join('、') + 'を手配' : `${esc(e.seller)}で${e.qty}個手配（元の発注は${e.keep ? '引き続き待つ' : 'キャンセル'}）`) + (e.memo ? '　メモ「' + esc(e.memo) + '」' : '');
       case 'cancel': return t + `キャンセル${e.reason ? '（' + CANCEL_REASON[e.reason] + '）' : ''}${e.memo ? '　メモ「' + esc(e.memo) + '」' : ''}`;
       case 'reopen': return t + 'キャンセルを取り消し';
+      case 'hold': return t + `保留（見直す日 ${e.until ? esc(md(e.until)) : 'なし'}）${e.memo ? '　理由「' + esc(e.memo) + '」' : ''}`;
+      case 'unhold': return t + '保留を解除';
       case 'partial': return t + `一部納品 ${e.count}個`;
       case 'delivered': return t + '納品（解決）';
       case 'undo': return t + '納品チェックの取り消し';
@@ -11206,7 +11231,10 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const is = o.issue;
     const st = statusOf(o);
     let l3 = '';
-    if (cls === 'open') l3 = `<span class="badge issue-open">未対応</span>届かなかった ${fmtShort(is.flaggedAt)}`;
+    const holdInfo = () => `保留にした日 ${fmtShort(is.hold.at)}　見直す日 ${is.hold.until ? '<b>' + esc(md(is.hold.until)) + '</b>' : 'なし'}${is.hold.memo ? `<div style="color:var(--sub);font-size:17px">保留の理由：${esc(is.hold.memo)}</div>` : ''}`;
+    if (cls === 'open' && is.state === 'hold') l3 = `<span class="badge issue-open">保留の見直し日</span>` + holdInfo();
+    else if (cls === 'open') l3 = `<span class="badge issue-open">未対応</span>届かなかった ${fmtShort(is.flaggedAt)}`;
+    else if (cls === 'hold') l3 = `<span class="badge issue-hold">保留</span>` + holdInfo();
     else if (cls === 'doing') l3 = `<span class="badge issue-doing">${is.state === 'confirmed' ? '卸に確認済み' : '別の卸で手配済み'}</span>` +
       (is.state === 'confirmed' ? `納品予定 <b>${esc(etaText(is.eta))}</b>` : '元の卸からも後日届く予定') + (is.reason ? `　理由 ${esc(is.reason)}` : '');
     else l3 = st === 'cancelled' ? `<span class="badge cancel">キャンセル${o.cancelReason ? '・' + CANCEL_REASON[o.cancelReason].replace('ため', '') : ''}</span>${fmtShort(o.cancelledAt)}` : `<span class="badge done">納品</span>${fmtShort(o.doneAt)}（届かなかった ${fmtShort(is.flaggedAt)}）`;
@@ -11221,14 +11249,17 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   const etaKey = o => { const e = o.issue.eta; if (!e || e.undecided) return '9999'; return e.date + (e.slot === 'am' ? '1' : e.slot === 'pm' ? '3' : e.slot === 'time' ? '2' + (e.time || '') : '4'); };
   function renderIssues() {
     const act = orders.filter(activeIssue);
-    const open = act.filter(o => o.issue.state === 'open').sort((a, b) => a.issue.flaggedAt - b.issue.flaggedAt);
-    const doing = act.filter(o => o.issue.state !== 'open').sort((a, b) => etaKey(a).localeCompare(etaKey(b)));
+    const open = act.filter(needsAction).sort((a, b) => a.issue.flaggedAt - b.issue.flaggedAt);
+    const doing = act.filter(o => o.issue.state === 'confirmed' || o.issue.state === 'arranged').sort((a, b) => etaKey(a).localeCompare(etaKey(b)));
+    const holdKey = o => (o.issue.hold && o.issue.hold.until) || '9999';
+    const held = act.filter(o => isHold(o) && !holdDue(o)).sort((a, b) => holdKey(a).localeCompare(holdKey(b)));
     const closedAll = orders.filter(o => o.issue && !activeIssue(o));
     const closedAt = o => o.cancelled ? o.cancelledAt : (o.issue.resolvedAt || o.doneAt);
     const closed = closedAll.filter(o => period === 0 || withinDays(closedAt(o), period)).sort((a, b) => closedAt(b) - closedAt(a));
     let h = '';
-    h += `<div class="sec urgent"><h2>未対応<span>${open.length}件　卸への確認がまだの発注</span></h2>${open.length ? open.map(o => issCard(o, 'open')).join('') : '<div class="empty">未対応の発注はありません。</div>'}</div>`;
+    h += `<div class="sec urgent"><h2>未対応<span>${open.length}件　卸への確認がまだの発注・保留の見直し日になった発注</span></h2>${open.length ? open.map(o => issCard(o, 'open')).join('') : '<div class="empty">未対応の発注はありません。</div>'}</div>`;
     h += `<div class="sec"><h2>対応中<span>${doing.length}件　確認・手配済みで、まだ届いていない発注（納品予定の順）</span></h2>${doing.length ? doing.map(o => issCard(o, 'doing')).join('') : '<div class="empty">対応中の発注はありません。</div>'}</div>`;
+    h += `<div class="sec"><h2>保留<span>${held.length}件　急がないので待っている発注（見直す日の順）</span></h2>${held.length ? held.map(o => issCard(o, 'hold')).join('') : '<div class="empty">保留中の発注はありません。</div>'}</div>`;
     h += `<details class="closed-sec" ${closedOpen ? 'open' : ''}><summary>解決済み（${period ? '直近' + period + '日' : 'すべて'}）${closed.length}件</summary>
       <div class="period">${[[7, '直近7日'], [30, '直近30日'], [0, 'すべて']].map(([d, t]) => `<button class="chip ${period === d ? 'on' : ''}" data-period="${d}">${t}</button>`).join('')}</div>
       ${closed.length ? closed.map(o => issCard(o, 'closed')).join('') : '<div class="empty">この期間に解決した発注はありません。</div>'}</details>`;
@@ -11263,11 +11294,19 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     dialog(head + `<div class="bigacts">
         <button type="button" class="btn" id="aConfirm">卸に確認した<small>納品予定と理由を記録します</small></button>
         <button type="button" class="btn" id="aArrange">別の卸で手配した<small>手配先の発注を追加し、元の発注の扱いを選びます</small></button>
-        <button type="button" class="btn danger" id="aCancel">キャンセルした（不要になった）<small>この発注を閉じます。記録は残ります</small></button>
+        <button type="button" class="btn danger" id="aCancel">キャンセルした<small>この発注を閉じます。記録は残ります</small></button>
+        ${is.state === 'hold' ? '<button type="button" class="btn" id="aUnhold">保留を解除する<small>保留にする前の状態に戻します</small></button>' : '<button type="button" class="btn" id="aHold">保留にする（急がない）<small>いったん待ちます。見直す日を決めておくと、その日に「未対応」に戻ります</small></button>'}
       </div>` + logs + `<div class="actions">${is.state === 'open' && is.log.length === 1 ? '<button type="button" class="btn danger" id="aUnflag">「届かなかった」を取り消す</button>' : ''}<button type="button" class="btn" data-close>閉じる</button></div>`);
     $('aConfirm').addEventListener('click', () => confirmDialog(o));
     $('aArrange').addEventListener('click', () => arrangeDialog(o));
     $('aCancel').addEventListener('click', () => cancelDialog(o));
+    if ($('aHold')) $('aHold').addEventListener('click', () => holdDialog(o));
+    if ($('aUnhold')) $('aUnhold').addEventListener('click', async () => {
+      const now = Date.now();
+      is.state = (is.hold && is.hold.prev) || 'open'; delete is.hold;
+      issueLog(o, { at: now, type: 'unhold' });
+      await putOrder(o); closeDialog(); refresh(); toast('保留を解除しました');
+    });
     if ($('aUnflag')) $('aUnflag').addEventListener('click', async () => { o.issue = null; await putOrder(o); closeDialog(); refresh(); toast('「届かなかった」を取り消しました'); });
   }
 
@@ -11333,7 +11372,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       const r = readEta();
       if (r.error) { $('oMsg').textContent = r.error; $('oMsg').classList.add('warn'); return; }
       const now = Date.now();
-      is.state = 'confirmed'; is.eta = r.eta; is.reason = getReason() || ''; is.memo = $('oMemo').value.trim();
+      delete is.hold; is.state = 'confirmed'; is.eta = r.eta; is.reason = getReason() || ''; is.memo = $('oMemo').value.trim();
       issueLog(o, { at: now, type: 'confirm', eta: r.eta, reason: is.reason, memo: is.memo });
       await putOrder(o); closeDialog(); refresh(); toast('卸に確認した内容を記録しました');
     });
@@ -11412,12 +11451,37 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         importedAt: now, printedAt: '', delivered: 0, checks: [], issue: null, cancelled: false, schema: SCHEMA }));
       o.children = (o.children || []).concat(kids.map(k => k.key));
       issueLog(o, { at: now, type: 'arrange', list: plan.map(x => ({ seller: x.seller, qty: x.qty, eta: x.eta })), memo });
-      o.issue.state = 'arranged';
+      delete o.issue.hold; o.issue.state = 'arranged';
       if (keep === 'cancel') doCancel(o, now, 'arranged', '');
       const tx = db.transaction('orders', 'readwrite'); const os = tx.objectStore('orders');
       os.put(o); kids.forEach(k => os.put(k)); await done(tx);
       orders.push(...kids);
       closeDialog(); refresh(); toast(`${plan.map(x => x.seller).join('・')}の手配分を納品チェックに追加しました`);
+    });
+  }
+
+  // 保留にする
+  function holdDialog(o) {
+    const is = o.issue;
+    dialog(`<h3>${esc(o.name)}</h3><p>急がないので、この発注をいったん保留にします。保留中も、届いたら納品チェックでふだんどおりチェックできます。</p>
+      <div class="dlabel">見直す日</div>
+      ${opts('hUntil', [['', '決めない'], ['7', '1週間後'], ['14', '2週間後'], ['pick', '日付を選ぶ']], '')}
+      <p id="hPickRow" hidden><input type="date" id="hDate"></p>
+      <div class="dlabel">保留の理由・メモ</div>
+      <textarea id="hMemo" placeholder="例：在庫がまだあるため急がない"></textarea>
+      <p class="preview" id="hMsg"></p>
+      <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="hSave">保留にする</button></div>`);
+    const getUntil = bindOpts('hUntil', v => { $('hPickRow').hidden = v !== 'pick'; });
+    $('hSave').addEventListener('click', async () => {
+      const u = getUntil();
+      let until = null;
+      if (u === '7' || u === '14') until = addDays(+u);
+      else if (u === 'pick') { const v = $('hDate').value; if (!v) { $('hMsg').textContent = '日付を選んでください。'; $('hMsg').classList.add('warn'); return; } until = v.replace(/-/g, '/'); }
+      const now = Date.now(), memo = $('hMemo').value.trim();
+      is.hold = { at: now, until, memo, prev: is.state === 'hold' ? (is.hold && is.hold.prev) || 'open' : is.state };
+      is.state = 'hold';
+      issueLog(o, { at: now, type: 'hold', until, memo });
+      await putOrder(o); closeDialog(); refresh(); toast('保留にしました' + (until ? `（${md(until)}に見直し）` : ''));
     });
   }
 
