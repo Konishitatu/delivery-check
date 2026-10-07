@@ -175,6 +175,14 @@ ul.plan small{color:var(--sub);font-size:16px}
 .iss.dormant{border-left-color:#9EADB7}
 .dsub{margin:14px 6px 8px;font-size:17px;font-weight:700;color:var(--sub)}
 .card.dorm{background:#F7F9F9;border-style:dashed}
+details.later{margin-top:12px}
+details.later > summary{list-style:none;cursor:pointer;background:var(--paper);border:1px dashed #9EADB7;border-radius:12px;padding:12px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+details.later > summary::-webkit-details-marker{display:none}
+details.later > summary::before{content:'▶';font-size:14px;color:var(--sub);transition:transform .15s}
+details.later[open] > summary::before{transform:rotate(90deg)}
+details.later .lt{font-size:19px;font-weight:700}
+details.later > summary small{flex-basis:100%;color:var(--sub);font-size:15px;padding-left:22px}
+details.later > .card{margin-top:8px;background:#F7F9F9}
 .item.dormant .body{opacity:.8}
 .iss.hold{border-left-color:#B9A66A}
 .stabs{display:flex;gap:4px;overflow-x:auto;border-bottom:2px solid var(--rule);margin:0 0 16px;-webkit-overflow-scrolling:touch}
@@ -205,7 +213,7 @@ ul.plan small{color:var(--sub);font-size:16px}
   <div class="view on" id="v-check">
     <button class="bknote" id="bkNote" hidden></button>
     <div class="filters" id="filters">
-      <button class="chip on" data-f="open">未納品<span class="n" id="n-open"></span></button>
+      <button class="chip on" data-f="open">未チェック<span class="n" id="n-open"></span></button>
       <button class="chip" data-f="done">納品済み（直近7日）<span class="n" id="n-done"></span></button>
       <button class="chip" data-f="all">すべて（直近7日）<span class="n" id="n-all"></span></button>
     </div>
@@ -256,7 +264,7 @@ ul.plan small{color:var(--sub);font-size:16px}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-6</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-7</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -300,7 +308,7 @@ ul.plan small{color:var(--sub);font-size:16px}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.07-6 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.07-7 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -10885,7 +10893,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.07-6';
+  const VERSION = 'v2026.10.07-7';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -10944,6 +10952,9 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   // 見直し不要：届いていないが、もう追わない（キャンセルはしていないので、忘れた頃に届くことがある）
   const isDormant = o => activeIssue(o) && o.issue.state === 'dormant';
   const DORMANT_REASON = { elsewhere: '他の卸から届いた', unneeded: '不要になった' };
+  // 一度チェックしたけれど未納品の分（届かなかったを押した・一部だけ届いた）。納品チェックでは畳んで別に表示する
+  const checkedOnce = o => ['open', 'partial'].includes(statusOf(o)) && (activeIssue(o) || statusOf(o) === 'partial');
+  const laterRank = o => needsAction(o) ? 0 : !activeIssue(o) ? 1 : isHold(o) ? 3 : isDormant(o) ? 4 : 2;
 
   let orders = [], imports = [];
   async function loadAll() {
@@ -11027,6 +11038,11 @@ if (typeof module !== 'undefined') module.exports = HCQ;
 
   /* ---------- 納品チェックの一覧 ---------- */
   let filter = 'open', sellerSel = '__all';
+  const laterOpen = new Set(); // 開いている「一度チェックして未納品の分」（卸ごと）
+  $('list').addEventListener('toggle', e => {
+    const d = e.target; if (!d.matches || !d.matches('details.later')) return;
+    if (d.open) laterOpen.add(d.dataset.later); else laterOpen.delete(d.dataset.later);
+  }, true);
   $('filters').addEventListener('click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
     filter = b.dataset.f;
@@ -11064,7 +11080,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   function renderList() {
     renderBackupInfo();
     const openAll = orders.filter(o => ['open', 'partial'].includes(statusOf(o)));
-    const open = openAll.filter(o => !isDormant(o));          // 件数には見直し不要を含めない
+    const open = openAll.filter(o => !checkedOnce(o));        // 件数は、まだチェックしていない分だけ
     const doneRecent = orders.filter(o => statusOf(o) === 'done' && withinDays(o.doneAt || o.importedAt, DONE_DAYS));
     const cancelRecent = orders.filter(o => o.cancelled && withinDays(o.cancelledAt, DONE_DAYS));
     $('n-open').textContent = open.length + '件';
@@ -11079,11 +11095,11 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const sellerOrder = [];
     orders.slice().sort((a, b) => a.importedAt - b.importedAt).forEach(o => { if (!sellerOrder.includes(o.seller)) sellerOrder.push(o.seller); });
     // 卸の切り替え（タブ）。件数は今の表示（未納品・納品済み・すべて）での数
-    const cnt = s => list.filter(o => o.seller === s && !isDormant(o)).length;
+    const cnt = s => list.filter(o => o.seller === s && !checkedOnce(o)).length;
     const has = s => list.some(o => o.seller === s);
     const tabs = sellerOrder.filter(s => has(s) || s === sellerSel);
     if (sellerSel !== '__all' && !sellerOrder.includes(sellerSel)) sellerSel = '__all';
-    let html = `<div class="stabs" id="stabs"><button class="stab ${sellerSel === '__all' ? 'on' : ''}" data-seller="__all">すべて<span>${list.filter(o => !isDormant(o)).length}</span></button>` +
+    let html = `<div class="stabs" id="stabs"><button class="stab ${sellerSel === '__all' ? 'on' : ''}" data-seller="__all">すべて<span>${list.filter(o => !checkedOnce(o)).length}</span></button>` +
       tabs.map(s => `<button class="stab ${sellerSel === s ? 'on' : ''}" data-seller="${esc(s)}">${esc(s)}<span>${cnt(s)}</span></button>`).join('') + '</div>';
     const t = today();
     const shown = sellerSel === '__all' ? sellerOrder : [sellerSel];
@@ -11095,12 +11111,19 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         (filter === 'done' ? (b.doneAt || 0) - (a.doneAt || 0) : 0) ||
         (a.due || '9').localeCompare(b.due || '9') || a.orderedAt.localeCompare(b.orderedAt) || a.name.localeCompare(b.name, 'ja'));
       if (!items.length) continue;
-      const main = items.filter(o => !isDormant(o)), dorm = items.filter(isDormant);
+      const main = items.filter(o => !checkedOnce(o));
+      const later = items.filter(checkedOnce).sort((a, b) => laterRank(a) - laterRank(b));
       const nOpen = main.filter(o => ['open', 'partial'].includes(statusOf(o))).length;
-      html += `<div class="group"><div class="ghead"><h2>${esc(s)}</h2><span>${filter === 'done' ? main.length + '件' : '未納品 ' + nOpen + '件'}</span></div>`;
+      html += `<div class="group"><div class="ghead"><h2>${esc(s)}</h2><span>${filter === 'done' ? main.length + '件' : 'まだチェックしていない分 ' + nOpen + '件'}</span></div>`;
       if (main.length) html += `<div class="card">${main.map(o => rowHtml(o, t)).join('')}</div>`;
-      else html += `<div class="empty" style="padding:18px">${what}はありません。</div>`;
-      if (dorm.length) html += `<div class="dsub">見直し不要（届いたら受け取る）${dorm.length}件</div><div class="card dorm">${dorm.map(o => rowHtml(o, t)).join('')}</div>`;
+      else html += `<div class="empty" style="padding:18px">${filter === 'open' ? 'まだチェックしていない発注はありません。' : what + 'はありません。'}</div>`;
+      if (later.length) {
+        const nAct = later.filter(needsAction).length;
+        html += `<details class="later" data-later="${esc(s)}" ${laterOpen.has(s) ? 'open' : ''}>
+          <summary><span class="lt">一度チェックして未納品の分　${later.length}件</span>${nAct ? `<span class="badge issue-open">未対応 ${nAct}</span>` : ''}
+            <small>届かなかった・一部納品・保留・見直し不要など。届いたときや見直すときに開いてください</small></summary>
+          <div class="card">${later.map(o => rowHtml(o, t)).join('')}</div></details>`;
+      }
       html += '</div>';
     }
     $('list').innerHTML = html;
