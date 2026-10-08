@@ -175,6 +175,22 @@ ul.plan small{color:var(--sub);font-size:16px}
 .iss.dormant{border-left-color:#9EADB7}
 .dsub{margin:14px 6px 8px;font-size:17px;font-weight:700;color:var(--sub)}
 .card.dorm{background:#F7F9F9;border-style:dashed}
+.sbox{display:flex;gap:10px;margin-bottom:12px}
+.sbox input::-webkit-search-cancel-button{display:none}
+.sbox input{flex:1;font:inherit;font-size:22px;padding:14px 16px;border:2px solid var(--accent);border-radius:12px;background:#fff;color:var(--ink);min-width:0}
+.qsum{margin:4px 2px 10px;color:var(--sub)}
+.qsum b{color:var(--ink)}
+.qrow{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:12px 18px;margin-bottom:8px}
+.qrow.act{cursor:pointer}
+.qrow.done,.qrow.cancelled{opacity:.8}
+.qrow .l1{display:flex;gap:10px;align-items:baseline}
+.qrow .seller{font-size:16px;font-weight:700;color:var(--sub);border:1px solid var(--rule);border-radius:6px;padding:0 8px;white-space:nowrap}
+.qrow .nm{flex:1;font-size:21px;font-weight:700;word-break:break-all}
+.qrow .qq{font-size:22px;font-weight:700;white-space:nowrap}
+.qrow .qq small{font-size:16px;color:var(--sub);font-weight:400;margin-left:2px}
+.qrow .l2{color:var(--sub);font-size:17px}
+.qrow .l3{margin-top:4px;font-size:17px;color:var(--sub)}
+.qrow .more{color:var(--accent);font-weight:700}
 details.later{margin-top:12px}
 details.later > summary{list-style:none;cursor:pointer;background:var(--paper);border:1px dashed #9EADB7;border-radius:12px;padding:12px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
 details.later > summary::-webkit-details-marker{display:none}
@@ -226,6 +242,20 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
     <div id="issues"></div>
   </div>
 
+  <!-- ========== 検索 ========== -->
+  <div class="view" id="v-search">
+    <div class="sbox">
+      <input type="search" id="q" placeholder="品名・メーカー・商品コードの一部（ひらがなでも探せます）" autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="btn" id="qClear" hidden>消す</button>
+    </div>
+    <div class="filters" id="qFilters">
+      <button class="chip on" data-q="all">すべて</button>
+      <button class="chip" data-q="open">未納品</button>
+      <button class="chip" data-q="done">納品済み</button>
+    </div>
+    <div id="qResult"></div>
+  </div>
+
   <!-- ========== 取り込み ========== -->
   <div class="view" id="v-import">
     <section class="box" id="scanBox">
@@ -264,7 +294,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.07-7</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.08-1</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -308,13 +338,14 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.07-7 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.08-1 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
 <nav class="tabs" id="tabs">
   <button class="on" data-v="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg>納品チェック</button>
   <button data-v="issues"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5v.5"/></svg>未納品対応<span class="cnt" id="issueCnt" hidden></span></button>
+  <button data-v="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>検索</button>
   <button data-v="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="13" width="4" height="4"/><path d="M13 7h4v4M7 13v4h4"/></svg>取り込み</button>
   <button data-v="more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>その他</button>
 </nav>
@@ -10893,7 +10924,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.07-7';
+  const VERSION = 'v2026.10.08-1';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -11025,9 +11056,10 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (view === 'issues') renderIssues();
     if (view === 'import') renderHistory();
     if (view === 'more') renderStats();
+    if (view === 'search') { renderSearch(); setTimeout(() => $('q').focus(), 50); }
   }
   // 画面の再描画（今の画面と、タブの未対応件数）
-  function refresh() { renderHeader(); if (view === 'check') renderList(); if (view === 'issues') renderIssues(); }
+  function refresh() { renderHeader(); if (view === 'check') renderList(); if (view === 'issues') renderIssues(); if (view === 'search') renderSearch(); }
   function renderHeader() {
     const l = imports[0];
     $('lastImport').innerHTML = l ? `最終取り込み <b>${fmtShort(l.at)}</b>（発注書の出力 ${esc(md(l.printedAt))}）` : 'まだ取り込みがありません';
@@ -11595,6 +11627,58 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       await putOrder(o); closeDialog(); refresh(); toast('キャンセルとして閉じました');
     });
   }
+
+  /* ---------- 検索 ----------
+     品名・メーカー・規格・卸・商品コードの一部で探す。ひらがな・全角/半角カナ・英数字の違いは気にせず探せる。
+     保存してあるすべての発注（過去の分も）が対象。発注日時の新しい順に表示する。 */
+  const norm = t => String(t || '').normalize('NFKC')
+    .replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60))   // ひらがな → カタカナ
+    .toUpperCase().replace(/[\s「」｢｣・]/g, '');
+  const SEARCH_MAX = 100;
+  let qMode = 'all', qTimer = null;
+  $('q').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(renderSearch, 150); });
+  $('qClear').addEventListener('click', () => { $('q').value = ''; renderSearch(); $('q').focus(); });
+  $('qFilters').addEventListener('click', e => {
+    const b = e.target.closest('[data-q]'); if (!b) return;
+    qMode = b.dataset.q; document.querySelectorAll('#qFilters .chip').forEach(c => c.classList.toggle('on', c === b)); renderSearch();
+  });
+  // 状況のひとこと（検索結果用）
+  function stateBadge(o) {
+    const st = statusOf(o);
+    if (st === 'done') return `<span class="badge done">納品済み ${fmtShort(o.doneAt)}</span>`;
+    if (st === 'cancelled') return `<span class="badge cancel">キャンセル${o.cancelReason ? '（' + CANCEL_REASON[o.cancelReason].replace('ため', '') + '）' : ''}</span>`;
+    let t = '';
+    if (activeIssue(o)) t = `<span class="badge ${needsAction(o) ? 'issue-open' : isHold(o) ? 'issue-hold' : isDormant(o) ? 'issue-dorm' : 'issue-doing'}">${esc(issueLabel(o))}</span>`;
+    else t = `<span class="badge late">未納品</span>`;
+    if (st === 'partial') t += `<span class="badge part">一部納品 ${o.delivered}/${o.qty}</span>`;
+    return t;
+  }
+  function renderSearch() {
+    const raw = $('q').value; $('qClear').hidden = !raw;
+    const q = norm(raw);
+    if (!q) { $('qResult').innerHTML = `<div class="empty">品名などを入力すると、発注されているか・どの卸から届くか・納品済みかを調べられます。<br>例：「ろさる」「ツムラ」「4987」</div>`; return; }
+    const hit = orders.filter(o => norm([o.name, o.maker, o.spec, o.seller, o.jan].join(' ')).includes(q))
+      .filter(o => qMode === 'all' || (qMode === 'open' ? ['open', 'partial'].includes(statusOf(o)) : statusOf(o) === 'done'))
+      .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt) || b.importedAt - a.importedAt);
+    if (!hit.length) { $('qResult').innerHTML = `<div class="empty">「${esc(raw)}」に当てはまる発注は見つかりませんでした。</div>`; return; }
+    const nOpen = hit.filter(o => ['open', 'partial'].includes(statusOf(o))).length, nDone = hit.filter(o => statusOf(o) === 'done').length;
+    let h = `<p class="qsum">${hit.length}件見つかりました（未納品 <b>${nOpen}</b>件・納品済み <b>${nDone}</b>件）${hit.length > SEARCH_MAX ? `。新しい順に${SEARCH_MAX}件まで表示しています` : ''}</p>`;
+    h += hit.slice(0, SEARCH_MAX).map(o => {
+      const st = statusOf(o), act = activeIssue(o);
+      const due = o.source === 'arranged' ? (o.eta ? '納品予定 ' + esc(etaText(o.eta)) : '') : '納品指定 ' + (esc(md(o.due)) || '—');
+      const eta = act && o.issue.state === 'confirmed' && o.issue.eta ? '　卸の返事：' + esc(etaText(o.issue.eta)) : '';
+      return `<div class="qrow ${st}${act ? ' act' : ''}" data-key="${esc(o.key)}">
+        <div class="l1"><span class="seller">${esc(o.seller)}</span><span class="nm">${o.source === 'arranged' ? PENCIL : ''}${esc(o.name)}</span><span class="qq">${o.qty}<small>個</small></span></div>
+        <div class="l2">${esc(o.spec)}${o.maker ? '　' + esc(o.maker) : ''}</div>
+        <div class="l3">${stateBadge(o)}発注 ${esc(md(o.orderedAt.slice(0, 16)))}　${due}${eta}${act ? '　<span class="more">対応を見る ›</span>' : ''}</div>
+      </div>`;
+    }).join('');
+    $('qResult').innerHTML = h;
+  }
+  $('qResult').addEventListener('click', e => {
+    const r = e.target.closest('.qrow.act'); if (!r) return;
+    const o = orderByKey(r.dataset.key); if (o) issueMenu(o);
+  });
 
   /* ---------- 小窓・お知らせ ---------- */
   function dialog(html) { $('dlg').innerHTML = html; $('ov').classList.add('on'); }
