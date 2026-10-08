@@ -91,6 +91,9 @@ section.box h2{font-size:22px;margin:0 0 10px}
 .dots{display:flex;justify-content:center;gap:12px;margin-bottom:6px}
 .dots span{width:22px;height:22px;border-radius:50%;border:2px solid var(--accent);background:var(--paper)}
 .dots span.on{background:var(--accent)}
+.dots{flex-wrap:wrap}
+.dots.many{gap:5px;max-width:640px;margin-left:auto;margin-right:auto}
+.dots.many span{width:12px;height:12px;border-width:1px}
 .msg{text-align:center;color:var(--sub);min-height:1.6em}
 .result-num{display:flex;gap:18px;flex-wrap:wrap;margin:6px 0 12px}
 .result-num div{background:var(--bg);border-radius:12px;padding:12px 20px;min-width:180px}
@@ -294,7 +297,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.08-1</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.08-2</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -338,7 +341,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.08-1 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.08-2 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -10481,7 +10484,10 @@ const HCQ = (() => {
   };
   const CHUNK_MAX = 700;       // QRコード1枚に入れるデータ量の上限（バイト）
   const PAYLOAD_TAG = 'HCQ1';  // データ形式の名前と版（iPad側と合わせる）
-  const CHUNK_TAG = 'HQ1';     // QR1枚ごとの見出し
+  const CHUNK_TAG = 'HQ1';     // QR1枚ごとの見出し（発注書）
+  const MASTER_TAG = 'HCM1';   // 採用品一覧のデータ形式の名前と版
+  const MASTER_CHUNK_TAG = 'HM1'; // QR1枚ごとの見出し（採用品一覧）
+  const MASTER_CHUNK_MAX = 900;   // 採用品一覧は枚数が多いので、1枚に少し多めに入れる
 
   /* ---------- 小道具 ---------- */
   const bin = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return s; };
@@ -10626,38 +10632,101 @@ const HCQ = (() => {
     return out.slice(0, n);
   }
   function jsDeflate(data) {
-    const out = [0x78, 0x01]; let bitbuf = 0, bitcnt = 0;
-    const put = (v, c) => { bitbuf |= v << bitcnt; bitcnt += c; while (bitcnt >= 8) { out.push(bitbuf & 255); bitbuf >>>= 8; bitcnt -= 8; } };
-    const rev = (v, c) => { let r = 0; for (let i = 0; i < c; i++) { r = (r << 1) | (v & 1); v >>= 1; } return r; };
-    const huff = (code, len) => put(rev(code, len), len);
-    const lit = s => { if (s < 144) huff(0x30 + s, 8); else if (s < 256) huff(0x190 + s - 144, 9); else if (s < 280) huff(s - 256, 7); else huff(0xC0 + s - 280, 8); };
-    put(1, 1); put(1, 2);                          // 最後のブロック、固定ハフマン
-    const N = data.length, head = new Int32Array(1 << 15).fill(-1), prev = new Int32Array(N);
+    const N = data.length;
+    // ---- 1) 重複を探して「文字」か「(長さ, 距離)」の列にする（遅延一致つき） ----
+    const head = new Int32Array(1 << 15).fill(-1), prev = new Int32Array(Math.max(N, 1));
     const hash = i => ((data[i] << 10) ^ (data[i + 1] << 5) ^ data[i + 2]) & 0x7fff;
     const ins = i => { if (i + 2 < N) { const h = hash(i); prev[i] = head[h]; head[h] = i; } };
-    for (let i = 0; i < N;) {
+    const find = i => {
       let bl = 0, bd = 0;
-      if (i + 2 < N) {
-        for (let j = head[hash(i)], chain = 64; j >= 0 && i - j <= 32768 && chain-- > 0; j = prev[j]) {
-          let l = 0; while (l < 258 && i + l < N && data[j + l] === data[i + l]) l++;
-          if (l > bl) { bl = l; bd = i - j; if (l === 258) break; }
-        }
+      if (i + 2 >= N) return [0, 0];
+      for (let j = head[hash(i)], chain = 128; j >= 0 && i - j <= 32768 && chain-- > 0; j = prev[j]) {
+        if (data[j + bl] !== data[i + bl]) continue;
+        let l = 0; while (l < 258 && i + l < N && data[j + l] === data[i + l]) l++;
+        if (l > bl) { bl = l; bd = i - j; if (l === 258) break; }
       }
-      if (bl >= 3) {
-        let li = 28; while (LBASE[li] > bl) li--;
-        lit(257 + li); put(bl - LBASE[li], LEXT[li]);
-        let di = 29; while (DBASE[di] > bd) di--;
-        huff(di, 5); put(bd - DBASE[di], DEXT[di]);
-        for (let k = 0; k < bl; k++) ins(i + k);
-        i += bl;
-      } else { lit(data[i]); ins(i); i++; }
+      return [bl, bd];
+    };
+    const toks = []; // 文字：0〜255、一致：[長さ, 距離]
+    for (let i = 0; i < N;) {
+      let [bl, bd] = find(i);
+      if (bl >= 3 && bl < 32 && i + 1 < N) {
+        ins(i);
+        const [bl2] = find(i + 1);
+        if (bl2 > bl) { toks.push(data[i]); i++; continue; }  // 1文字ずらしたほうが長く一致するなら、今の文字はそのまま
+        for (let k = 1; k < bl; k++) ins(i + k);
+        toks.push([bl, bd]); i += bl; continue;
+      }
+      if (bl >= 3) { for (let k = 0; k < bl; k++) ins(i + k); toks.push([bl, bd]); i += bl; }
+      else { ins(i); toks.push(data[i]); i++; }
     }
-    lit(256);
+    // ---- 2) 出現回数から、データに合わせた符号を作る（動的ハフマン） ----
+    const lcode = l => { let li = 28; while (LBASE[li] > l) li--; return li; };
+    const dcode = d => { let di = 29; while (DBASE[di] > d) di--; return di; };
+    const lf = new Uint32Array(286), df = new Uint32Array(30);
+    for (const t of toks) { if (typeof t === 'number') lf[t]++; else { lf[257 + lcode(t[0])]++; df[dcode(t[1])]++; } }
+    lf[256] = 1;
+    // 長さの上限つきハフマン符号（パッケージ・マージ法）
+    const lengths = (freq, limit) => {
+      const n = freq.length, len = new Uint8Array(n);
+      const items = []; for (let i = 0; i < n; i++) if (freq[i]) items.push({ w: freq[i], s: [i] });
+      if (items.length === 0) { len[0] = 1; return len; }
+      if (items.length === 1) { len[items[0].s[0]] = 1; return len; }
+      items.sort((a, b) => a.w - b.w);
+      let cur = items.slice();
+      for (let lv = 1; lv < limit; lv++) {
+        const pk = []; for (let i = 0; i + 1 < cur.length; i += 2) pk.push({ w: cur[i].w + cur[i + 1].w, s: cur[i].s.concat(cur[i + 1].s) });
+        const m = []; let a = 0, b = 0;
+        while (a < items.length || b < pk.length) m.push(b >= pk.length || (a < items.length && items[a].w <= pk[b].w) ? items[a++] : pk[b++]);
+        cur = m;
+      }
+      for (let i = 0; i < 2 * items.length - 2; i++) for (const s of cur[i].s) len[s]++;
+      return len;
+    };
+    const codes = len => { // 長さから実際の符号（書き込み用に左右反転）
+      const cnt = new Uint16Array(16), next = new Uint16Array(16), out = new Uint16Array(len.length);
+      for (const l of len) if (l) cnt[l]++;
+      for (let b = 1, c = 0; b < 16; b++) { c = (c + cnt[b - 1]) << 1; next[b] = c; }
+      for (let i = 0; i < len.length; i++) if (len[i]) { let c = next[len[i]]++, r = 0; for (let k = 0; k < len[i]; k++) { r = (r << 1) | (c & 1); c >>= 1; } out[i] = r; }
+      return out;
+    };
+    const ll = lengths(lf, 15), dl = lengths(df, 15);
+    let hlit = 286; while (hlit > 257 && !ll[hlit - 1]) hlit--;
+    let hdist = 30; while (hdist > 1 && !dl[hdist - 1]) hdist--;
+    // 符号の長さの並びを、繰り返しをまとめて短くする（16・17・18）
+    const seq = Array.from(ll.subarray(0, hlit)).concat(Array.from(dl.subarray(0, hdist)));
+    const rle = [];
+    for (let i = 0; i < seq.length;) {
+      const v = seq[i]; let r = 1; while (i + r < seq.length && seq[i + r] === v) r++;
+      if (v === 0 && r >= 3) { const k = Math.min(r, 138); rle.push(k >= 11 ? [18, k - 11, 7] : [17, k - 3, 3]); i += k; }
+      else if (v !== 0 && r >= 4) { rle.push([v]); const k = Math.min(r - 1, 6); rle.push([16, k - 3, 2]); i += 1 + k; }
+      else { rle.push([v]); i++; }
+    }
+    const cf = new Uint32Array(19); for (const x of rle) cf[x[0]]++;
+    const cl = lengths(cf, 7), cc = codes(cl);
+    const ORD = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
+    let hclen = 19; while (hclen > 4 && !cl[ORD[hclen - 1]]) hclen--;
+    // ---- 3) 書き出す ----
+    const out = [0x78, 0x9C]; let bitbuf = 0, bitcnt = 0;
+    const put = (v, c) => { bitbuf |= v << bitcnt; bitcnt += c; while (bitcnt >= 8) { out.push(bitbuf & 255); bitbuf >>>= 8; bitcnt -= 8; } };
+    put(1, 1); put(2, 2);                           // 最後のブロック、動的ハフマン
+    put(hlit - 257, 5); put(hdist - 1, 5); put(hclen - 4, 4);
+    for (let i = 0; i < hclen; i++) put(cl[ORD[i]], 3);
+    for (const x of rle) { put(cc[x[0]], cl[x[0]]); if (x.length > 1) put(x[1], x[2]); }
+    const lc = codes(ll), dc = codes(dl);
+    for (const t of toks) {
+      if (typeof t === 'number') { put(lc[t], ll[t]); continue; }
+      const li = lcode(t[0]), di = dcode(t[1]);
+      put(lc[257 + li], ll[257 + li]); put(t[0] - LBASE[li], LEXT[li]);
+      put(dc[di], dl[di]); put(t[1] - DBASE[di], DEXT[di]);
+    }
+    put(lc[256], ll[256]);
     if (bitcnt > 0) out.push(bitbuf & 255);
     let a = 1, b = 0; for (let i = 0; i < N; i++) { a = (a + data[i]) % 65521; b = (b + a) % 65521; }
     out.push((b >>> 8) & 255, b & 255, (a >>> 8) & 255, a & 255);
     return Uint8Array.from(out);
   }
+
 
   /* 展開・圧縮：まずブラウザ標準の機能を使い、エラーや時間切れ（4秒）なら予備の処理に切り替える。
      一度切り替えたら、その後は最初から予備の処理を使う。 */
@@ -10899,20 +10968,93 @@ const HCQ = (() => {
     return { id, chunks, text, packedBytes: packed.length };
   }
 
+  /* ---------- 採用品一覧（Alf-Web の GOODSLIST.XLS） ----------
+     送る項目：商品コード・品名（規格つき）・品名カナ（漢字を含む品名だけ）・メーカー・発注卸
+     送らない：価格・停止日の入った品目など
+     文字の詰め方：半角カナを1バイトにする独自の形（ASCIIはそのまま、それ以外は 0x80＋2バイト） */
+  const kanaPack = str => {
+    const out = [];
+    for (const ch of str) {
+      const c = ch.charCodeAt(0);
+      if (c < 0x80) out.push(c);
+      else if (c >= 0xFF61 && c <= 0xFF9F) out.push(c - 0xFF61 + 0xA1);
+      else if (c <= 0xFFFF) out.push(0x80, c >> 8, c & 255);
+    }
+    return Uint8Array.from(out);
+  };
+  const kanaUnpack = u8 => {
+    let s = '';
+    for (let i = 0; i < u8.length; i++) {
+      const b = u8[i];
+      if (b < 0x80) s += String.fromCharCode(b);
+      else if (b === 0x80) { s += String.fromCharCode((u8[i + 1] << 8) | u8[i + 2]); i += 2; }
+      else s += String.fromCharCode(b - 0xA1 + 0xFF61);
+    }
+    return s;
+  };
+  // 漢字で読みがわからない品名だけカナを付ける（錠・散・液などのよくある字だけなら付けない）
+  const COMMON_KANJI = new Set('錠散液剤粒膏用注点眼配合塩酸水和物');
+  const needKana = name => [...name].some(ch => /[\u4e00-\u9fff]/.test(ch) && !COMMON_KANJI.has(ch));
+
+  function buildMaster(rows) {
+    const hi = rows.findIndex(r => r && r.includes('JANコード'));
+    if (hi < 0) throw new ReadError('「JANコード」の列が見つかりません。Alf-Web の採用品一覧（GOODSLIST.XLS）かどうか確認してください。');
+    const h = rows[hi], col = n => h.indexOf(n);
+    const cJan = col('JANコード'), cStop = col('停止日'), cName = col('商品名'), cKana = col('商品名カナ'), cMaker = col('メーカー名'), cSeller = col('発注卸コード');
+    if (cName < 0 || cSeller < 0) throw new ReadError('「商品名」または「発注卸コード」の列が見つかりません。');
+    const items = [], problems = []; let stopped = 0;
+    rows.slice(hi + 1).forEach((r, i) => {
+      if (!r || !r.some(v => v)) return;
+      const jan = String(r[cJan] || '').trim(), name = String(r[cName] || '').trim();
+      if (cStop >= 0 && String(r[cStop] || '').trim()) { stopped++; return; }
+      if (!name) return;
+      if (!/^\d{13}$/.test(jan)) problems.push(`${hi + i + 2}行目：商品コードが13桁ではありません（${jan || '空'}）`);
+      items.push({ jan, name, kana: cKana >= 0 ? String(r[cKana] || '').trim() : '', maker: cMaker >= 0 ? String(r[cMaker] || '').trim() : '', seller: String(r[cSeller] || '').trim() });
+    });
+    if (!items.length) throw new ReadError('品目が1つも見つかりませんでした。');
+    return { items, stopped, problems };
+  }
+  async function makeMasterChunks(master) {
+    const items = master.items.slice().sort((a, b) => a.maker.localeCompare(b.maker, 'ja') || a.name.localeCompare(b.name, 'ja'));
+    const makers = [...new Set(items.map(x => x.maker))], sellers = [...new Set(items.map(x => x.seller))];
+    const mi = new Map(makers.map((m, i) => [m, i])), si = new Map(sellers.map((m, i) => [m, i]));
+    const d = new Date(), p2 = n => String(n).padStart(2, '0');
+    const made = `${d.getFullYear()}/${p2(d.getMonth() + 1)}/${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+    const lines = [[MASTER_TAG, made, items.length].join('\t'), makers.map(clean).join('\t'), sellers.map(clean).join('\t')]
+      .concat(items.map(x => [x.jan, clean(x.name), needKana(x.name) ? clean(x.kana) : '', mi.get(x.maker), si.get(x.seller)].join('\t')));
+    step('QRコード用にデータを圧縮しています'); await tick();
+    const packed = await zlib(kanaPack(lines.join('\n')), 'deflate');
+    const id = fnv(packed);
+    const n = Math.max(1, Math.ceil(packed.length / MASTER_CHUNK_MAX)), size = Math.ceil(packed.length / n);
+    const chunks = [];
+    for (let i = 0; i < n; i++) chunks.push(`${MASTER_CHUNK_TAG}|${id}|${i + 1}|${n}|` + bin(packed.subarray(i * size, (i + 1) * size)));
+    return { id, chunks, packedBytes: packed.length, count: items.length };
+  }
+  // iPad側：組み立てた文字を採用品一覧に戻す
+  function parseMaster(text) {
+    const L = text.split('\n');
+    const head = L[0].split('\t'), makers = L[1].split('\t'), sellers = L[2].split('\t');
+    if (head[0] !== MASTER_TAG) throw new Error('採用品一覧のデータではありません');
+    const items = L.slice(3).filter(Boolean).map(l => { const f = l.split('\t'); return { jan: f[0], name: f[1], kana: f[2] || '', maker: makers[+f[3]] || '', seller: sellers[+f[4]] || '' }; });
+    return { madeAt: head[1], count: +head[2], items };
+  }
+
   /* iPad側で使う組み立て処理（ここでは検証用） */
   async function joinChunks(chunkByteArrays) {
     const parts = chunkByteArrays.map(u8 => {
-      const s = bin(u8); const m = s.match(/^HQ1\|([0-9a-f]{8})\|(\d+)\|(\d+)\|/);
+      const s = bin(u8.subarray(0, 40)); const m = s.match(/^H[QM]1\|([0-9a-f]{8})\|(\d+)\|(\d+)\|/);
       if (!m) throw new Error('このQRコードは発注データではありません');
       return { id: m[1], i: +m[2], n: +m[3], data: u8.subarray(m[0].length) };
     }).sort((a, b) => a.i - b.i);
     const total = parts.reduce((a, p) => a + p.data.length, 0);
     const all = new Uint8Array(total); let o = 0; parts.forEach(p => { all.set(p.data, o); o += p.data.length; });
     if (fnv(all) !== parts[0].id) throw new Error('データが壊れています');
-    return new TextDecoder().decode(await zlib(all, 'inflate'));
+    const raw = await zlib(all, 'inflate');
+    const isMaster = raw.length > 4 && bin(raw.subarray(0, 4)) === MASTER_TAG;
+    return isMaster ? kanaUnpack(raw) : new TextDecoder().decode(raw);
   }
 
-  const api = { readPdf, buildOrders, makeChunks, joinChunks, selfTest, ReadError, LAYOUT, engine, onStep: null, _jsInflate: jsInflate, _jsDeflate: jsDeflate };
+  const api = { readPdf, buildOrders, makeChunks, joinChunks, selfTest, buildMaster, makeMasterChunks, parseMaster, ReadError, LAYOUT, engine, onStep: null, _jsInflate: jsInflate, _jsDeflate: jsDeflate };
   return api;
 })();
 if (typeof module !== 'undefined') module.exports = HCQ;
@@ -10924,7 +11066,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.08-1';
+  const VERSION = 'v2026.10.08-2';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -11694,6 +11836,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   $('toastUndo').onclick = async () => { $('toast').classList.remove('on'); if (toastUndo) { const u = toastUndo; toastUndo = null; await u(); } };
 
   /* ---------- カメラで読み取る ---------- */
+  let scanKind = 'Q';
   let stream = null, facing = 'environment', scanning = false, frameNo = 0, parts = new Map(), batch = null, total = 0, audio = null;
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -11750,18 +11893,24 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   }
   function take(u8) {
     let head = ''; for (let i = 0; i < Math.min(40, u8.length); i++) head += String.fromCharCode(u8[i]);
-    const m = head.match(/^HQ1\|([0-9a-f]{8})\|(\d+)\|(\d+)\|/);
+    const m = head.match(/^H([QM])1\|([0-9a-f]{8})\|(\d+)\|(\d+)\|/);
     if (!m) { $('msg').textContent = '発注データではないQRコードです。発注書QR変換の画面に向けてください。'; return; }
-    const id = m[1], i = +m[2], n = +m[3];
-    if (batch && batch !== id) { $('msg').textContent = '別の発注書のQRコードを読みました。最初から読み直します。'; parts = new Map(); }
-    if (batch !== id) { batch = id; total = n; $('tot').textContent = n; $('dots').innerHTML = Array.from({ length: n }, () => '<span></span>').join(''); }
+    const kind = m[1], id = m[2], i = +m[3], n = +m[4];
+    if (batch && batch !== id) { $('msg').textContent = '別のデータのQRコードを読みました。最初から読み直します。'; parts = new Map(); }
+    if (batch !== id) {
+      batch = id; total = n; scanKind = kind; $('tot').textContent = n;
+      $('dots').className = 'dots' + (n > 20 ? ' many' : '');
+      $('dots').innerHTML = Array.from({ length: n }, () => '<span></span>').join('');
+    }
     if (parts.has(i)) return;
     parts.set(i, u8); $('got').textContent = parts.size;
     if ($('dots').children[i - 1]) $('dots').children[i - 1].classList.add('on');
     flash();
     if (parts.size < total) {
       const rest = []; for (let k = 1; k <= total; k++) if (!parts.has(k)) rest.push(k);
-      $('msg').textContent = `${i}枚目を読み取りました。発注PCで「次の枚」を押してください（残り：${rest.join('、')}枚目）`;
+      $('msg').textContent = scanKind === 'M'
+        ? `採用品一覧を読み取っています。iPadを動かさずに、そのまま画面に向けておいてください（残り ${rest.length}枚）`
+        : `${i}枚目を読み取りました。発注PCで「次の枚」を押してください（残り：${rest.join('、')}枚目）`;
     } else finishScan();
   }
   function flash() {
@@ -11770,11 +11919,35 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   }
   async function finishScan() {
     stopCam(); $('camWrap').hidden = true;
-    let log;
-    try { log = await importText(await HCQ.joinChunks([...parts.values()])); }
+    let log, text;
+    try {
+      text = await HCQ.joinChunks([...parts.values()]);
+      if (text.startsWith('HCM1')) { const r = await importMaster(text); return showMasterResult(r); }
+      log = await importText(text);
+    }
     catch (e) { resetScan(); return camError('取り込めませんでした。もう一度最初から読み取ってください。（' + e.message + '）'); }
     showResult(log);
   }
+  /* ---------- 採用品一覧 ----------
+     発注の手入力で、品名の候補に使う。iPadの中（meta の 'master'）に保存する。 */
+  let master = null;
+  async function importMaster(text) {
+    const m = HCQ.parseMaster(text);
+    const before = master ? master.items.length : null;
+    const rec = { madeAt: m.madeAt, importedAt: Date.now(), items: m.items };
+    await setMeta('master', rec); master = rec;
+    return { count: m.items.length, before, madeAt: m.madeAt, sellers: m.items.reduce((a, x) => (a[x.seller] = (a[x.seller] || 0) + 1, a), {}) };
+  }
+  function showMasterResult(r) {
+    let h = `<div class="note" style="background:var(--accent-soft);color:var(--accent)"><b>採用品一覧を取り込みました。</b>発注の手入力で、品名の候補に使います。発注の記録やチェックには影響しません。</div>`;
+    h += `<div class="result-num"><div>品目<b>${r.count.toLocaleString()}</b></div>${r.before != null ? `<div>前回<b>${r.before.toLocaleString()}</b></div>` : ''}</div>`;
+    h += `<dl class="kv"><dt>一覧を作った日時</dt><dd>${esc(r.madeAt)}</dd><dt>取り込んだ日時</dt><dd>${fmt(Date.now())}</dd></dl>`;
+    h += `<table class="t" style="margin-top:12px"><thead><tr><th>発注卸</th><th style="text-align:right">品目</th></tr></thead><tbody>${Object.entries(r.sellers).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${v.toLocaleString()}</td></tr>`).join('')}</tbody></table>`;
+    $('resultBody').innerHTML = h;
+    $('scanBox').hidden = true; $('resultBox').hidden = false;
+    window.scrollTo(0, 0);
+  }
+
   function showResult(log) {
     let h = '';
     if (log.added === 0) h += `<div class="note"><b>この発注書は、すべて取り込み済みでした。</b>新しく追加された発注はありません。チェックの状態は変わっていません。</div>`;
@@ -11797,7 +11970,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     renderBackupInfo();
     const open = orders.filter(o => ['open', 'partial'].includes(statusOf(o))).length;
     const iss = orders.filter(o => o.issue).length, act = orders.filter(activeIssue).length;
-    $('stats').innerHTML = `<dt>発注の件数</dt><dd>${orders.length}件（うち未納品 ${open}件）</dd><dt>届かなかった記録</dt><dd>${iss}件（うち対応中 ${act}件）</dd><dt>取り込みの回数</dt><dd>${imports.length}回</dd><dt>アプリの版</dt><dd>${VERSION}</dd><dt>開き方</dt><dd>${isStandalone() ? 'ホーム画面のアプリ' : 'Safari（ホーム画面への追加がおすすめ）'}</dd>`;
+    const mInfo = master ? `${master.items.length.toLocaleString()}品目（${fmt(master.importedAt)} 取り込み）` : 'まだ取り込んでいません';
+    $('stats').innerHTML = `<dt>採用品一覧</dt><dd>${mInfo}</dd><dt>発注の件数</dt><dd>${orders.length}件（うち未納品 ${open}件）</dd><dt>届かなかった記録</dt><dd>${iss}件（うち対応中 ${act}件）</dd><dt>取り込みの回数</dt><dd>${imports.length}回</dd><dt>アプリの版</dt><dd>${VERSION}</dd><dt>開き方</dt><dd>${isStandalone() ? 'ホーム画面のアプリ' : 'Safari（ホーム画面への追加がおすすめ）'}</dd>`;
   }
   $('wipe').onclick = () => {
     dialog(`<h3>すべてのデータを消しますか？</h3><p>取り込んだ発注、納品チェック、未納品対応、取り込みの記録がすべて消えます。バックアップがなければ、元には戻せません。</p>
@@ -11849,7 +12023,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
 
   $('bkSave').addEventListener('click', async () => {
     const now = Date.now();
-    const data = { app: 'nohin-check', format: 1, schema: SCHEMA, version: VERSION, exportedAt: now, orders, imports };
+    const data = { app: 'nohin-check', format: 1, schema: SCHEMA, version: VERSION, exportedAt: now, orders, imports, master };
     const d = new Date(now);
     const name = `納品チェック_バックアップ_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -11889,13 +12063,16 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         <button type="button" class="btn danger" id="rReplace">今のデータを置き換える<small>今のデータをすべて消して、バックアップの内容にします</small></button>
       </div>
       <div class="actions"><button type="button" class="btn" data-close>やめる</button></div>`);
-    $('rMerge').addEventListener('click', () => restore(bOrders, bImports, false));
-    $('rReplace').addEventListener('click', () => restore(bOrders, bImports, true));
+    const bMaster = data.master && Array.isArray(data.master.items) ? data.master : null;
+    $('rMerge').addEventListener('click', () => restore(bOrders, bImports, false, bMaster));
+    $('rReplace').addEventListener('click', () => restore(bOrders, bImports, true, bMaster));
   });
   // 最後に操作した時刻（合わせるときに、新しいほうを残すため）
   const lastTouch = o => Math.max(o.importedAt || 0, o.lastCheckedAt || 0, o.doneAt || 0, o.cancelledAt || 0,
     ...(o.issue && o.issue.log ? o.issue.log.map(x => x.at || 0) : [0]));
-  async function restore(bOrders, bImports, replace) {
+  async function restore(bOrders, bImports, replace, bMaster) {
+    // 採用品一覧：置き換えならバックアップの分に、合わせるなら新しいほうを使う
+    if (bMaster && (replace || !master || (bMaster.importedAt || 0) > (master.importedAt || 0))) { await setMeta('master', bMaster); master = bMaster; }
     const tx = db.transaction(['orders', 'imports'], 'readwrite');
     const os = tx.objectStore('orders'), is = tx.objectStore('imports');
     let added = 0, updated = 0, kept = 0;
@@ -11932,6 +12109,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       db = await openDb();
       await loadAll();
       lastBackup = await getMeta('lastBackup');
+      master = await getMeta('master');
       if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     } catch (e) {
       document.querySelector('main').innerHTML = '<div class="err">データの保存場所を開けませんでした。Safariの「プライベートブラウズ」になっていないか確認してください。（' + esc(e.message) + '）</div>';
@@ -11943,7 +12121,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   })();
 
   // 検証用（画面の操作には使わない）
-  window.NohinApp = { importText, get orders() { return orders; } };
+  window.NohinApp = { importText, _take: u8 => take(u8), get orders() { return orders; }, get master() { return master; } };
 })();
 </script>
 </body>
