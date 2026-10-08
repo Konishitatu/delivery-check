@@ -178,6 +178,23 @@ ul.plan small{color:var(--sub);font-size:16px}
 .iss.dormant{border-left-color:#9EADB7}
 .dsub{margin:14px 6px 8px;font-size:17px;font-weight:700;color:var(--sub)}
 .card.dorm{background:#F7F9F9;border-style:dashed}
+.topacts{display:flex;justify-content:flex-end;margin:-4px 0 12px}
+.topacts .btn{font-size:20px}
+.minput{width:100%;font:inherit;font-size:21px;padding:12px 14px;border:2px solid var(--accent);border-radius:12px;background:#fff;color:var(--ink)}
+.minput::-webkit-search-cancel-button{display:none}
+.cands{margin:8px 0 14px;max-height:46vh;overflow-y:auto}
+.cands .chint{color:var(--sub);font-size:17px;margin:6px 2px}
+.clabel{font-size:15px;font-weight:700;color:var(--sub);margin:10px 2px 4px}
+.cand{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--rule);border-radius:10px;padding:10px 14px;margin-bottom:6px}
+.cand .nm{display:block;font-size:19px;font-weight:700;word-break:break-all}
+.cand .sub{display:block;font-size:15px;color:var(--sub)}
+.cand.free{border-style:dashed}
+.selcard{background:var(--accent-soft);border-radius:12px;padding:12px 16px;margin:6px 0 10px}
+.selcard .nm{font-size:21px;font-weight:700;word-break:break-all}
+.selcard .sub{font-size:16px;color:var(--sub);margin-left:6px}
+.badge.newb{background:#FDE7C8;color:#8A4A00}
+.badge.manb{background:#EFE7F7;color:#5B3A87}
+.dialog input[type=datetime-local]{font:inherit;font-size:20px;padding:8px 12px;border:2px solid var(--rule);border-radius:10px;background:#fff;color:var(--ink)}
 .sbox{display:flex;gap:10px;margin-bottom:12px}
 .sbox input::-webkit-search-cancel-button{display:none}
 .sbox input{flex:1;font:inherit;font-size:22px;padding:14px 16px;border:2px solid var(--accent);border-radius:12px;background:#fff;color:var(--ink);min-width:0}
@@ -231,6 +248,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <!-- ========== 納品チェック ========== -->
   <div class="view on" id="v-check">
     <button class="bknote" id="bkNote" hidden></button>
+    <div class="topacts"><button class="btn primary" id="manualBtn">＋ 発注を手入力</button></div>
     <div class="filters" id="filters">
       <button class="chip on" data-f="open">未チェック<span class="n" id="n-open"></span></button>
       <button class="chip" data-f="done">納品済み（直近7日）<span class="n" id="n-done"></span></button>
@@ -255,6 +273,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <button class="chip on" data-q="all">すべて</button>
       <button class="chip" data-q="open">未納品</button>
       <button class="chip" data-q="done">納品済み</button>
+      <button class="chip" data-q="new">新規（採用品にない品）</button>
     </div>
     <div id="qResult"></div>
   </div>
@@ -297,7 +316,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.08-2</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.08-3</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -341,7 +360,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.08-2 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.08-3 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -11039,6 +11058,46 @@ const HCQ = (() => {
     return { madeAt: head[1], count: +head[2], items };
   }
 
+  /* ---------- マザー（厚生労働省 診療報酬情報提供サービスの医薬品マスター y_*.csv） ----------
+     採用品にない医薬品を手入力するときの候補。公開データなので GitHub にアプリと一緒に置く（mother.txt）。
+     使う列：漢字名称（5列目）・カナ名称（7列目）・単位（10列目）。廃止年月日（31列目）が過去のものは除く。 */
+  const MOTHER_TAG = 'HCMOTHER1';
+  function csvRows(text) { // 引用符つきの項目にも対応した簡単なCSVの読み取り
+    const rows = []; let row = [], f = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+      else if (c === '"') q = true;
+      else if (c === ',') { row.push(f); f = ''; }
+      else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+      else f += c;
+    }
+    if (f || row.length) { row.push(f); rows.push(row); }
+    return rows;
+  }
+  function buildMother(text, fileName) {
+    const rows = csvRows(text).filter(r => r.length > 30 && r[1] === 'Y');
+    if (!rows.length) throw new ReadError('医薬品マスター（y_ で始まるCSV）ではないようです。厚生労働省の診療報酬情報提供サービスからダウンロードしたファイルを選んでください。');
+    const d = new Date(), p2 = n => String(n).padStart(2, '0');
+    const today = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}`;
+    const seen = new Set(), lines = [];
+    let ended = 0;
+    for (const r of rows) {
+      const end = (r[30] || '').trim();
+      if (end && end !== '99999999' && end < today) { ended++; continue; }
+      const name = clean(r[4]).trim(); if (!name || seen.has(name)) continue;
+      seen.add(name);
+      lines.push([name, clean(r[6]).trim(), clean(r[9]).trim()].join('\t'));
+    }
+    const head = [MOTHER_TAG, fileName || '', `${d.getFullYear()}/${p2(d.getMonth() + 1)}/${p2(d.getDate())}`, lines.length].join('\t');
+    return { text: head + '\n' + lines.join('\n') + '\n', count: lines.length, ended, total: rows.length };
+  }
+  function parseMother(text) {
+    const L = text.split('\n'); const head = L[0].split('\t');
+    if (head[0] !== MOTHER_TAG) throw new Error('マザーのデータではありません');
+    return { source: head[1], madeAt: head[2], items: L.slice(1).filter(Boolean).map(l => { const f = l.split('\t'); return { name: f[0], kana: f[1] || '', unit: f[2] || '' }; }) };
+  }
+
   /* iPad側で使う組み立て処理（ここでは検証用） */
   async function joinChunks(chunkByteArrays) {
     const parts = chunkByteArrays.map(u8 => {
@@ -11054,7 +11113,7 @@ const HCQ = (() => {
     return isMaster ? kanaUnpack(raw) : new TextDecoder().decode(raw);
   }
 
-  const api = { readPdf, buildOrders, makeChunks, joinChunks, selfTest, buildMaster, makeMasterChunks, parseMaster, ReadError, LAYOUT, engine, onStep: null, _jsInflate: jsInflate, _jsDeflate: jsDeflate };
+  const api = { readPdf, buildOrders, makeChunks, joinChunks, selfTest, buildMaster, makeMasterChunks, parseMaster, buildMother, parseMother, MOTHER_TAG, ReadError, LAYOUT, engine, onStep: null, _jsInflate: jsInflate, _jsDeflate: jsDeflate };
   return api;
 })();
 if (typeof module !== 'undefined') module.exports = HCQ;
@@ -11066,7 +11125,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.08-2';
+  const VERSION = 'v2026.10.08-3';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -11312,13 +11371,14 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (st === 'partial') badges.push(`<span class="badge part">一部納品 ${o.delivered}/${o.qty}（残り${o.qty - o.delivered}）</span>`);
     if (activeIssue(o)) badges.push(`<button class="badge btn-like ${needsAction(o) ? 'issue-open' : isHold(o) ? 'issue-hold' : isDormant(o) ? 'issue-dorm' : 'issue-doing'}" data-act="issue">${esc(issueLabel(o))} ›</button>`);
     if (late) badges.push(`<span class="badge late">納品指定日を過ぎています</span>`);
+    if (isManual(o)) badges.unshift(`<button class="badge btn-like manb" data-act="manual">${o.isNew ? '新規・' : ''}手入力 ›</button>`);
     const canAct = st === 'open' || st === 'partial';
     return `<div class="item ${st}${isDormant(o) ? ' dormant' : ''}" data-key="${esc(o.key)}">
       <button class="chk" data-act="check" aria-label="${st === 'done' ? 'チェックを取り消す' : '全数納品にする'}" ${st === 'cancelled' ? 'disabled' : ''}><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i></button>
       <div class="body">
-        <div class="name">${o.source === 'arranged' ? PENCIL : ''}${esc(o.name)}</div>
+        <div class="name">${hasPencil(o) ? PENCIL : ''}${esc(o.name)}</div>
         <div class="spec">${esc(o.spec)}${o.maker ? '　' + esc(o.maker) : ''}</div>
-        <div class="meta">${badges.join('')}${o.source === 'arranged' ? arrangedNote(o) : `納品指定 ${esc(md(o.due)) || '—'}　発注 ${esc(md(o.orderedAt.slice(0, 16)))}`}</div>
+        <div class="meta">${badges.join('')}${o.source === 'arranged' ? arrangedNote(o) : isManual(o) ? manualNote(o) : `納品指定 ${esc(md(o.due)) || '—'}　発注 ${esc(md(o.orderedAt.slice(0, 16)))}`}</div>
       </div>
       <div class="side">
         <div class="qty">${o.qty}<small> 個</small></div>
@@ -11339,6 +11399,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     else if (act === 'part') partial(o);
     else if (act === 'nodel') notDelivered(o);
     else if (act === 'issue') issueMenu(o);
+    else if (act === 'manual') manualDialog(o);
   });
 
   // 全数納品（未納品・一部納品 → 納品済み）
@@ -11455,7 +11516,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     else l3 = st === 'cancelled' ? `<span class="badge cancel">キャンセル${o.cancelReason ? '・' + CANCEL_REASON[o.cancelReason].replace('ため', '') : ''}</span>${fmtShort(o.cancelledAt)}` : `<span class="badge done">納品</span>${fmtShort(o.doneAt)}（届かなかった ${fmtShort(is.flaggedAt)}）`;
     const remain = o.qty - o.delivered;
     return `<button class="iss ${cls}" data-key="${esc(o.key)}">
-      <div class="l1"><span class="seller">${esc(o.seller)}</span><span class="nm">${o.source === 'arranged' ? PENCIL : ''}${esc(o.name)}</span></div>
+      <div class="l1"><span class="seller">${esc(o.seller)}</span><span class="nm">${hasPencil(o) ? PENCIL : ''}${esc(o.name)}</span></div>
       <div class="l2">${esc(o.spec)}　発注 ${esc(md(o.orderedAt.slice(0, 16)))}　数量 ${o.qty}個${o.delivered && st !== 'done' ? `（届いた ${o.delivered}・残り ${remain}）` : ''}</div>
       <div class="l3">${l3}${is.memo ? `<div style="color:var(--sub);font-size:17px">メモ：${esc(is.memo)}</div>` : ''}</div>
       ${kidsText(o) ? `<div class="kids">${kidsText(o)}</div>` : ''}
@@ -11500,7 +11561,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   function issueMenu(o) {
     const is = o.issue;
     const logs = `<div class="dlabel">対応の記録</div><ul class="log">${is.log.slice().reverse().map(e => `<li>${logText(e)}</li>`).join('')}</ul>`;
-    const head = `<h3>${o.source === 'arranged' ? PENCIL : ''}${esc(o.name)}</h3><p>${esc(o.seller)}　${esc(o.spec)}　数量 ${o.qty}個${o.delivered && statusOf(o) !== 'done' ? `（届いた ${o.delivered}・残り ${o.qty - o.delivered}）` : ''}</p>`;
+    const head = `<h3>${hasPencil(o) ? PENCIL : ''}${esc(o.name)}</h3><p>${esc(o.seller)}　${esc(o.spec)}　数量 ${o.qty}個${o.delivered && statusOf(o) !== 'done' ? `（届いた ${o.delivered}・残り ${o.qty - o.delivered}）` : ''}</p>`;
     if (!activeIssue(o)) {
       dialog(head + logs + `${o.cancelled ? '<p style="font-size:17px;color:var(--sub)">キャンセルを押し間違えたときは「キャンセルを取り消す」で元に戻せます。取り消すと、キャンセルの記録も消えます。</p>' : ''}<div class="actions">${o.cancelled ? '<button type="button" class="btn danger" id="dReopen">キャンセルを取り消す</button>' : ''}<button type="button" class="btn primary" data-close>閉じる</button></div>`);
       if ($('dReopen')) $('dReopen').addEventListener('click', async () => {
@@ -11798,19 +11859,24 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   function renderSearch() {
     const raw = $('q').value; $('qClear').hidden = !raw;
     const q = norm(raw);
-    if (!q) { $('qResult').innerHTML = `<div class="empty">品名などを入力すると、発注されているか・どの卸から届くか・納品済みかを調べられます。<br>例：「ろさる」「ツムラ」「4987」</div>`; return; }
-    const hit = orders.filter(o => norm([o.name, o.maker, o.spec, o.seller, o.jan].join(' ')).includes(q))
-      .filter(o => qMode === 'all' || (qMode === 'open' ? ['open', 'partial'].includes(statusOf(o)) : statusOf(o) === 'done'))
+    if (!q && qMode === 'new') {
+      const nw = orders.filter(o => o.isNew).sort((a, b) => b.orderedAt.localeCompare(a.orderedAt));
+      if (!nw.length) { $('qResult').innerHTML = '<div class="empty">新規（採用品にない品）の手入力はまだありません。</div>'; return; }
+      $('q').value = ''; // 何も入れずに「新規」を押したら、新規の品をすべて表示する
+    }
+    if (!q && qMode !== 'new') { $('qResult').innerHTML = `<div class="empty">品名などを入力すると、発注されているか・どの卸から届くか・納品済みかを調べられます。<br>例：「ろさる」「ツムラ」「4987」</div>`; return; }
+    const hit = orders.filter(o => !q || norm([o.name, o.maker, o.spec, o.seller, o.jan].join(' ')).includes(q))
+      .filter(o => qMode === 'all' || (qMode === 'open' ? ['open', 'partial'].includes(statusOf(o)) : qMode === 'new' ? !!o.isNew : statusOf(o) === 'done'))
       .sort((a, b) => b.orderedAt.localeCompare(a.orderedAt) || b.importedAt - a.importedAt);
     if (!hit.length) { $('qResult').innerHTML = `<div class="empty">「${esc(raw)}」に当てはまる発注は見つかりませんでした。</div>`; return; }
     const nOpen = hit.filter(o => ['open', 'partial'].includes(statusOf(o))).length, nDone = hit.filter(o => statusOf(o) === 'done').length;
     let h = `<p class="qsum">${hit.length}件見つかりました（未納品 <b>${nOpen}</b>件・納品済み <b>${nDone}</b>件）${hit.length > SEARCH_MAX ? `。新しい順に${SEARCH_MAX}件まで表示しています` : ''}</p>`;
     h += hit.slice(0, SEARCH_MAX).map(o => {
       const st = statusOf(o), act = activeIssue(o);
-      const due = o.source === 'arranged' ? (o.eta ? '納品予定 ' + esc(etaText(o.eta)) : '') : '納品指定 ' + (esc(md(o.due)) || '—');
+      const due = hasPencil(o) ? (o.eta && !o.eta.undecided ? '納品予定 ' + esc(etaText(o.eta)) : '') + (isManual(o) ? '　手入力' + (o.isNew ? '<span class="badge newb" style="margin-left:6px">新規</span>' : '') : '') : '納品指定 ' + (esc(md(o.due)) || '—');
       const eta = act && o.issue.state === 'confirmed' && o.issue.eta ? '　卸の返事：' + esc(etaText(o.issue.eta)) : '';
       return `<div class="qrow ${st}${act ? ' act' : ''}" data-key="${esc(o.key)}">
-        <div class="l1"><span class="seller">${esc(o.seller)}</span><span class="nm">${o.source === 'arranged' ? PENCIL : ''}${esc(o.name)}</span><span class="qq">${o.qty}<small>個</small></span></div>
+        <div class="l1"><span class="seller">${esc(o.seller)}</span><span class="nm">${hasPencil(o) ? PENCIL : ''}${esc(o.name)}</span><span class="qq">${o.qty}<small>個</small></span></div>
         <div class="l2">${esc(o.spec)}${o.maker ? '　' + esc(o.maker) : ''}</div>
         <div class="l3">${stateBadge(o)}発注 ${esc(md(o.orderedAt.slice(0, 16)))}　${due}${eta}${act ? '　<span class="more">対応を見る ›</span>' : ''}</div>
       </div>`;
@@ -11821,6 +11887,175 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const r = e.target.closest('.qrow.act'); if (!r) return;
     const o = orderByKey(r.dataset.key); if (o) issueMenu(o);
   });
+
+  /* ---------- 発注の手入力 ----------
+     電話や担当者さんへの直接の依頼で発注した分を入力する。
+     品名の候補：①採用品一覧（発注卸も自動で入る）→ ②マザー（厚労省の医薬品マスター）→ ③入力した文字をそのまま使う
+     手入力の行には鉛筆の印。採用品一覧にない品は「新規」の印。日時は入力した時刻が初期値で、変えられる。 */
+  const isManual = o => o.source === 'manual';
+  const hasPencil = o => o.source === 'arranged' || o.source === 'manual';
+  const VIA = { phone: '電話', direct: '担当者に直接', other: 'その他' };
+  function manualNote(o) {
+    return (o.eta && !o.eta.undecided ? `納品予定 <b>${esc(etaText(o.eta))}</b>　` : '') + `手入力・発注 ${esc(md(o.orderedAt.slice(0, 16)))}` + (o.via ? `（${VIA[o.via] || ''}）` : '');
+  }
+
+  // マザー：GitHub の mother.txt を取りに行き、iPadの中に保存しておく（ネットにつながらないときは保存分を使う）
+  let mother = null, motherItems = null, masterItems = null, masterFor = null;
+  async function syncMother(force) {
+    try {
+      const r = await fetch('mother.txt' + (force ? '?t=' + Date.now() : ''), { cache: force ? 'no-store' : 'no-cache' });
+      if (!r.ok) return 'none';
+      const t = await r.text();
+      const head = t.slice(0, t.indexOf('\n'));
+      if (!head.startsWith(HCQ.MOTHER_TAG)) return 'none';
+      if (!mother || mother.head !== head) { mother = { head, text: t, at: Date.now() }; await setMeta('mother', mother); motherItems = null; return 'new'; }
+      return 'same';
+    } catch (e) { return 'offline'; }
+  }
+  function motherList() {
+    if (!mother) return [];
+    if (!motherItems) motherItems = HCQ.parseMother(mother.text).items.map(x => ({ ...x, key: norm(x.name + ' ' + x.kana), nk: norm(x.name) }));
+    return motherItems;
+  }
+  function masterList() {
+    if (!master) return [];
+    if (masterFor !== master) {
+      const freq = new Map(); orders.forEach(o => { if (o.jan) freq.set(o.jan, (freq.get(o.jan) || 0) + 1); });
+      masterItems = master.items.map(x => ({ ...x, key: norm([x.name, x.kana, x.maker, x.jan].join(' ')), nk: norm(x.name), freq: freq.get(x.jan) || 0 }));
+      masterFor = master;
+    }
+    return masterItems;
+  }
+  // 採用品の「品名」と「規格」：発注書で使われた書き方があればそれを、なければ最初の空白で分ける
+  function splitMaster(x) {
+    const p = orders.find(o => o.jan === x.jan && o.source === 'pdf');
+    if (p) return { name: p.name, spec: p.spec };
+    const i = x.name.indexOf(' ');
+    return i > 0 ? { name: x.name.slice(0, i), spec: x.name.slice(i + 1) } : { name: x.name, spec: '' };
+  }
+  const toLocalInput = t => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const stampFromLocal = v => v.replace('T', ' ').replace(/-/g, '/') + ':00';
+
+  $('manualBtn').addEventListener('click', () => manualDialog(null));
+
+  function manualDialog(edit) {
+    let sel = edit ? { type: edit.isNew ? 'other' : 'master', name: edit.name, spec: edit.spec, jan: edit.jan || '', maker: edit.maker || '', seller: edit.seller } : null;
+    const QMAX = 3;
+    const nums = [['1', '1個'], ['2', '2個'], ['3', '3個'], ['__n', '4個以上']];
+    const q0 = edit ? (edit.qty <= QMAX ? String(edit.qty) : '__n') : '1';
+    const sellers = SELLERS.slice(); orders.forEach(x => { if (x.source === 'pdf' && !sellers.includes(x.seller)) sellers.push(x.seller); });
+    const sellerCur = edit ? (sellers.includes(edit.seller) ? edit.seller : '__other') : null;
+    dialog(`<h3>${edit ? '手入力した発注を直す' : '発注を手入力する'}</h3>
+      <p>電話や担当者さんに直接お願いした発注を記録します。</p>
+      <div class="dlabel">品名</div>
+      <div id="mPickArea" ${sel ? 'hidden' : ''}>
+        <input type="search" id="mQ" class="minput" placeholder="品名の一部（ひらがなでも可）・商品コード" autocomplete="off" autocorrect="off" spellcheck="false">
+        <div class="cands" id="mCands"><p class="chint">${master ? '' : '採用品一覧がまだ取り込まれていません。'}${mother ? '' : (master ? '' : '<br>') + 'マザーがまだ読み込まれていません（インターネットにつながっているときに自動で読み込みます）。'}</p></div>
+      </div>
+      <div id="mSelArea" ${sel ? '' : 'hidden'}><div class="selcard" id="mSel"></div><button type="button" class="btn" id="mRepick">品名を選び直す</button></div>
+      <div id="mPackRow" hidden><div class="dlabel">規格・包装（わかれば）</div><input type="text" id="mPack" class="minput" placeholder="例：100錠（10錠×10）"></div>
+      <div class="dlabel">発注先（卸）</div>
+      ${opts('mSeller', sellers.map(x => [x, esc(x)]).concat([['__other', 'その他']]), sellerCur)}
+      <p id="mOtherRow" ${sellerCur === '__other' ? '' : 'hidden'}><input type="text" id="mOther" class="minput" placeholder="発注先の名前" value="${edit && sellerCur === '__other' ? esc(edit.seller) : ''}"></p>
+      <div class="dlabel">数量</div>
+      ${opts('mQtyOpts', nums, q0)}
+      <p id="mQtyRow" ${q0 === '__n' ? '' : 'hidden'}><input type="number" id="mQty" inputmode="numeric" min="1" value="${edit && edit.qty > QMAX ? edit.qty : ''}" style="font-size:22px;width:6em;padding:8px;border:2px solid var(--rule);border-radius:10px"> 個</p>
+      <div class="dlabel">発注した日時</div>
+      <p><input type="datetime-local" id="mAt" value="${toLocalInput(edit ? new Date(edit.orderedAt.replace(/\//g, '-').replace(' ', 'T')) : Date.now())}"></p>
+      ${etaHtml('n', edit && edit.eta && !edit.eta.undecided ? edit.eta : null)}
+      <div class="dlabel">依頼のしかた</div>
+      ${opts('mVia', Object.entries(VIA), edit ? edit.via || null : null)}
+      <div class="dlabel">メモ</div>
+      <textarea id="mMemo" placeholder="例：スズケンの〇〇さんに電話">${edit ? esc(edit.memo || '') : ''}</textarea>
+      <p class="preview" id="mMsg"></p>
+      <div class="actions">
+        ${edit ? '<button type="button" class="btn danger" id="mDel">この手入力を削除</button>' : ''}
+        <button type="button" class="btn" data-close>やめる</button>
+        ${edit ? '' : '<button type="button" class="btn" id="mSaveMore">記録して続けて入力</button>'}
+        <button type="button" class="btn primary" id="mSave">記録する</button>
+      </div>`);
+    const getSeller = bindOpts('mSeller', v => { $('mOtherRow').hidden = v !== '__other'; });
+    const getQtyOpt = bindOpts('mQtyOpts', v => { $('mQtyRow').hidden = v !== '__n'; if (v === '__n') $('mQty').focus(); });
+    const readEta = bindEta('n');
+    const getVia = bindOpts('mVia', null, true);
+    const warn = t => { $('mMsg').textContent = t; $('mMsg').classList.add('warn'); };
+
+    const showSel = () => {
+      $('mPickArea').hidden = !!sel; $('mSelArea').hidden = !sel;
+      const other = sel && sel.type !== 'master';
+      $('mPackRow').hidden = !other;
+      if (!sel) return;
+      if (other && edit && !$('mPack').value) $('mPack').value = edit.spec || '';
+      const label = sel.type === 'master' ? '<span class="badge done">採用品</span>' : '<span class="badge newb">新規</span>' + (sel.type === 'mother' ? '<span class="sub">厚労省の医薬品マスターから</span>' : sel.type === 'free' ? '<span class="sub">入力した名前をそのまま使います</span>' : '');
+      $('mSel').innerHTML = `<div>${label}</div><div class="nm">${esc(sel.name)}</div><div class="sub">${esc(sel.spec || '')}${sel.maker ? '　' + esc(sel.maker) : ''}${sel.seller ? '　いつもの発注卸：' + esc(sel.seller) : ''}</div>`;
+    };
+    showSel();
+    $('mRepick').addEventListener('click', () => { sel = null; showSel(); $('mQ').value = ''; renderCands(); $('mQ').focus(); });
+
+    // 候補を出す
+    let candList = [];
+    const renderCands = () => {
+      const raw = $('mQ').value.trim(), q = norm(raw);
+      if (!q) { $('mCands').innerHTML = `<p class="chint">品名の一部を入れると、候補が出ます。${master ? '' : '<br>採用品一覧がまだ取り込まれていません。'}</p>`; return; }
+      const rank = (x, nk) => (nk.startsWith(q) ? 0 : 1);
+      const m1 = masterList().filter(x => x.key.includes(q)).sort((a, b) => rank(a, a.nk) - rank(b, b.nk) || b.freq - a.freq || a.name.localeCompare(b.name, 'ja')).slice(0, 8);
+      const m2 = motherList().filter(x => x.key.includes(q)).sort((a, b) => rank(a, a.nk) - rank(b, b.nk) || a.name.length - b.name.length).slice(0, 8);
+      candList = [];
+      let h = '';
+      if (m1.length) h += '<div class="clabel">採用品</div>' + m1.map(x => { candList.push({ type: 'master', x }); return `<button type="button" class="cand" data-i="${candList.length - 1}"><span class="nm">${esc(x.name)}</span><span class="sub">${esc(x.maker)}　いつもの発注卸：${esc(x.seller)}${x.freq ? `　発注 ${x.freq}回` : ''}</span></button>`; }).join('');
+      if (m2.length) h += `<div class="clabel">採用品にない医薬品（厚労省の医薬品マスター）</div>` + m2.map(x => { candList.push({ type: 'mother', x }); return `<button type="button" class="cand" data-i="${candList.length - 1}"><span class="nm">${esc(x.name)}</span><span class="sub">単位：${esc(x.unit)}</span></button>`; }).join('');
+      candList.push({ type: 'free', x: { name: raw } });
+      h += `<div class="clabel">どちらにもないとき</div><button type="button" class="cand free" data-i="${candList.length - 1}"><span class="nm">「${esc(raw)}」をそのまま使う</span><span class="sub">新規の品として記録します</span></button>`;
+      $('mCands').innerHTML = h;
+    };
+    let ct = null;
+    $('mQ').addEventListener('input', () => { clearTimeout(ct); ct = setTimeout(renderCands, 120); });
+    $('mCands').addEventListener('click', e => {
+      const b = e.target.closest('.cand'); if (!b) return;
+      const c = candList[+b.dataset.i];
+      if (c.type === 'master') { const sp = splitMaster(c.x); sel = { type: 'master', name: sp.name, spec: sp.spec, jan: c.x.jan, maker: c.x.maker, seller: c.x.seller }; if (!getSeller() || !edit) getSeller.set(sellers.includes(c.x.seller) ? c.x.seller : '__other'); if (!sellers.includes(c.x.seller)) $('mOther').value = c.x.seller; }
+      else if (c.type === 'mother') sel = { type: 'mother', name: c.x.name, spec: '', jan: '', maker: '' };
+      else sel = { type: 'free', name: c.x.name, spec: '', jan: '', maker: '' };
+      showSel();
+    });
+    if (!sel) setTimeout(() => $('mQ').focus(), 50);
+
+    const save = async more => {
+      if (!sel) return warn('品名を選んでください。');
+      let seller = getSeller();
+      if (seller === '__other') seller = $('mOther').value.trim();
+      if (!seller) return warn('発注先（卸）を選んでください。');
+      const qty = parseInt(getQtyOpt() === '__n' ? $('mQty').value : getQtyOpt(), 10);
+      if (!(qty >= 1)) return warn('数量を選んでください。');
+      const at = $('mAt').value; if (!at) return warn('発注した日時を入れてください。');
+      let r = readEta();
+      if (r.error && /納品予定の日/.test(r.error)) r = { eta: { date: null, undecided: true, slot: '', time: '' } };
+      if (r.error) return warn(r.error);
+      const now = Date.now();
+      const spec = sel.type === 'master' ? sel.spec : $('mPack').value.trim();
+      const fields = { seller, orderedAt: stampFromLocal(at), maker: sel.maker || '', name: sel.name, spec, jan: sel.jan || '', qty,
+        due: r.eta.undecided ? '' : r.eta.date, eta: r.eta, isNew: sel.type !== 'master', via: getVia() || '', memo: $('mMemo').value.trim() };
+      let o;
+      if (edit) { o = edit; Object.assign(o, fields); o.edits = (o.edits || []).concat({ at: now }); }
+      else o = { key: 'man|' + now + '|' + Math.random().toString(36).slice(2, 8), source: 'manual', ...fields,
+        importedAt: now, printedAt: '', delivered: 0, checks: [], issue: null, cancelled: false, schema: SCHEMA };
+      await putOrder(o);
+      if (!edit) orders.push(o);
+      masterFor = null; // 発注回数を数え直す
+      toast(edit ? '手入力した発注を直しました' : `「${o.name}」を記録しました（${seller}）`);
+      if (more) { closeDialog(); refresh(); manualDialog(null); } else { closeDialog(); refresh(); }
+    };
+    $('mSave').addEventListener('click', () => save(false));
+    if ($('mSaveMore')) $('mSaveMore').addEventListener('click', () => save(true));
+    if ($('mDel')) $('mDel').addEventListener('click', () => {
+      dialog(`<h3>${esc(edit.name)}</h3><p>この手入力した発注を削除しますか？ チェックや未納品対応の記録も一緒に消えます。元には戻せません。</p>
+        <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn danger" id="mDelOk">削除する</button></div>`);
+      $('mDelOk').addEventListener('click', async () => {
+        const tx = db.transaction('orders', 'readwrite'); tx.objectStore('orders').delete(edit.key); await done(tx);
+        orders = orders.filter(x => x.key !== edit.key); closeDialog(); refresh(); toast('手入力した発注を削除しました');
+      });
+    });
+  }
 
   /* ---------- 小窓・お知らせ ---------- */
   function dialog(html) { $('dlg').innerHTML = html; $('ov').classList.add('on'); }
@@ -11971,7 +12206,9 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const open = orders.filter(o => ['open', 'partial'].includes(statusOf(o))).length;
     const iss = orders.filter(o => o.issue).length, act = orders.filter(activeIssue).length;
     const mInfo = master ? `${master.items.length.toLocaleString()}品目（${fmt(master.importedAt)} 取り込み）` : 'まだ取り込んでいません';
-    $('stats').innerHTML = `<dt>採用品一覧</dt><dd>${mInfo}</dd><dt>発注の件数</dt><dd>${orders.length}件（うち未納品 ${open}件）</dd><dt>届かなかった記録</dt><dd>${iss}件（うち対応中 ${act}件）</dd><dt>取り込みの回数</dt><dd>${imports.length}回</dd><dt>アプリの版</dt><dd>${VERSION}</dd><dt>開き方</dt><dd>${isStandalone() ? 'ホーム画面のアプリ' : 'Safari（ホーム画面への追加がおすすめ）'}</dd>`;
+    const moH = mother ? mother.head.split('\t') : null;
+    const moInfo = moH ? `${(+moH[3]).toLocaleString()}品目（${esc(moH[1])}、${fmt(mother.at)} 読み込み）` : 'まだ読み込んでいません（インターネットにつながっているときに自動で読み込みます）';
+    $('stats').innerHTML = `<dt>採用品一覧</dt><dd>${mInfo}</dd><dt>マザー</dt><dd>${moInfo}</dd><dt>発注の件数</dt><dd>${orders.length}件（うち未納品 ${open}件）</dd><dt>届かなかった記録</dt><dd>${iss}件（うち対応中 ${act}件）</dd><dt>取り込みの回数</dt><dd>${imports.length}回</dd><dt>アプリの版</dt><dd>${VERSION}</dd><dt>開き方</dt><dd>${isStandalone() ? 'ホーム画面のアプリ' : 'Safari（ホーム画面への追加がおすすめ）'}</dd>`;
   }
   $('wipe').onclick = () => {
     dialog(`<h3>すべてのデータを消しますか？</h3><p>取り込んだ発注、納品チェック、未納品対応、取り込みの記録がすべて消えます。バックアップがなければ、元には戻せません。</p>
@@ -11988,6 +12225,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
      データはiPadの中にあるので、読み込み直しても消えない。 */
   $('upd').addEventListener('click', async () => {
     const msg = $('updMsg'); msg.classList.remove('warn'); msg.textContent = '確認しています…';
+    const mr = await syncMother(true); if (mr === 'new') { renderStats(); toast('マザー（医薬品マスター）を新しくしました'); }
     try {
       const r = await fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' });
       const t = await r.text();
@@ -12110,6 +12348,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       await loadAll();
       lastBackup = await getMeta('lastBackup');
       master = await getMeta('master');
+      mother = await getMeta('mother');
+      syncMother(false).then(r => { if (r === 'new' && view === 'more') renderStats(); });
       if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     } catch (e) {
       document.querySelector('main').innerHTML = '<div class="err">データの保存場所を開けませんでした。Safariの「プライベートブラウズ」になっていないか確認してください。（' + esc(e.message) + '）</div>';
