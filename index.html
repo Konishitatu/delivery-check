@@ -41,7 +41,7 @@ main{max-width:1100px;margin:0 auto;padding:18px 18px 30px}
 
 /* ---- 下のタブ ---- */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--paper);border-top:1px solid var(--rule);display:flex;padding-bottom:var(--safe-b)}
-nav.tabs button{flex:1;border:0;background:none;padding:10px 0 12px;font-size:18px;color:var(--sub);display:flex;flex-direction:column;align-items:center;gap:2px;min-height:72px}
+nav.tabs button{flex:1;border:0;background:none;padding:10px 0 12px;font-size:17px;color:var(--sub);display:flex;flex-direction:column;align-items:center;gap:2px;min-height:72px}
 nav.tabs button svg{width:28px;height:28px}
 nav.tabs button.on{color:var(--accent);font-weight:700}
 
@@ -196,6 +196,63 @@ ul.plan small{color:var(--sub);font-size:16px}
 .badge.manb{background:#EFE7F7;color:#5B3A87}
 .dialog input[type=datetime-local]{font:inherit;font-size:20px;padding:8px 12px;border:2px solid var(--rule);border-radius:10px;background:#fff;color:var(--ink)}
 .sbox{display:flex;gap:10px;margin-bottom:12px}
+/* ---- 金曜発注 ---- */
+.ksubs{margin-bottom:12px}
+.kweek{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:space-between;margin:2px 2px 6px}
+.kweek select{font:inherit;font-size:19px;padding:6px 10px;border:2px solid var(--rule);border-radius:10px;background:#fff;color:var(--ink)}
+.kprog{color:var(--sub)} .kprog b{color:var(--ink);font-size:22px}
+.kbar{height:10px;background:var(--rule);border-radius:999px;overflow:hidden;margin-bottom:12px}
+.kbar span{display:block;height:100%;background:var(--accent)}
+.kfil{align-items:center}
+.kq{flex:1;min-width:200px;font:inherit;font-size:19px;padding:10px 14px;border:2px solid var(--rule);border-radius:12px;background:#fff;color:var(--ink)}
+.kq::-webkit-search-cancel-button{display:none}
+.kit{display:flex;align-items:stretch;background:var(--paper);border:1px solid var(--rule);border-left:8px solid var(--rule);border-radius:12px;margin-bottom:8px;min-height:96px}
+.kit.ok{border-left-color:var(--accent);background:#F6FAF8}
+.kit.need{border-left-color:#C77700;background:#FFFBF2}
+.kno{flex:0 0 46px;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:17px}
+.kb{flex:1;min-width:0;padding:12px 6px 10px 0}
+.knm{font-size:22px;font-weight:700;line-height:1.35;word-break:break-all}
+.kstar{color:#D49A00;margin-right:6px}
+.ksp{color:var(--sub);font-size:17px}
+.ksub{color:var(--sub);font-size:16px;font-weight:400}
+.kneed{font-size:19px;margin-top:2px}
+.kneed b{font-size:22px}
+.kchg{color:#5B3A87}
+.kmemo{font-size:17px;color:#5B3A87}
+.kord{font-size:17px;font-weight:700;margin-top:4px;border-radius:8px;padding:4px 10px;display:inline-block}
+.kord.warn{background:var(--late-bg);color:var(--late)}
+.kord.ok{background:var(--accent-soft);color:var(--accent)}
+.klink{border:0;background:none;color:var(--accent);font-weight:700;font-size:17px;padding:6px 0 0;min-height:40px}
+.kact{flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:8px;padding:10px 14px}
+.kact .btn{min-width:150px;font-size:19px;padding:10px 16px}
+.kact .kok{border-color:var(--accent);color:var(--accent)}
+.kact .kng{border-color:#C77700;color:#8A4A00}
+.kres{font-size:20px;font-weight:700;text-align:center;padding:6px 10px;border-radius:10px}
+.kres.ok{color:var(--accent);background:var(--accent-soft)}
+.kres.need{color:#8A4A00;background:#FDE7C8}
+.kres b{font-size:26px}
+.btn.ksm{min-height:44px;padding:4px 14px;font-size:17px}
+.ktbl tr.cur td{font-weight:700;background:var(--accent-soft)}
+.bcard{background:var(--paper);border:1px solid var(--rule);border-radius:16px;padding:20px 22px;text-align:center;margin-bottom:12px}
+.bcard.sent{border-color:var(--accent)}
+.bpos{color:var(--sub);font-size:18px}
+.bname{font-size:26px;font-weight:700;margin-top:4px;word-break:break-all}
+.bspec{color:var(--sub);font-size:18px}
+.bqty{font-size:22px;margin:6px 0 10px}
+.bqty b{font-size:40px;color:#8A4A00}
+.bwrap{display:flex;justify-content:center;padding:6px 0}
+.bwrap svg{width:calc(116px * var(--mod, 3));height:calc(40px * var(--mod, 3));max-width:100%;background:#fff}
+.bdig{font-family:ui-monospace,Menlo,monospace;font-size:24px;letter-spacing:.18em;margin-top:4px}
+.bact{justify-content:center;margin-top:16px}
+.khelp{color:var(--sub);font-size:17px;margin:4px 4px 8px}
+.kbsize{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 4px 14px;color:var(--sub)}
+.kbsize .chip{min-height:44px;padding:4px 18px}
+.blist .brow{display:flex;width:100%;align-items:center;gap:12px;border:0;border-top:1px solid var(--rule);background:none;padding:10px 16px;text-align:left;min-height:52px}
+.blist .brow:first-child{border-top:0}
+.blist .brow.cur{background:var(--accent-soft)}
+.blist .bmark{flex:0 0 36px;text-align:center;font-weight:700;color:var(--accent)}
+.blist .bn{flex:1;font-size:18px;word-break:break-all}
+.blist .bq{font-weight:700}
 .sbox input::-webkit-search-cancel-button{display:none}
 .sbox input{flex:1;font:inherit;font-size:22px;padding:14px 16px;border:2px solid var(--accent);border-radius:12px;background:#fff;color:var(--ink);min-width:0}
 .qsum{margin:4px 2px 10px;color:var(--sub)}
@@ -278,6 +335,17 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
     <div id="qResult"></div>
   </div>
 
+  <!-- ========== 金曜発注 ========== -->
+  <div class="view" id="v-kinyo">
+    <div class="filters ksubs" id="kSubs">
+      <button class="chip on" data-ks="check">確認する</button>
+      <button class="chip" data-ks="bar">発注用バーコード<span class="n" id="kBarN"></span></button>
+      <button class="chip" data-ks="manage">リストの管理</button>
+    </div>
+    <div id="kBody"></div>
+    <input type="file" id="kFile" accept=".json,application/json" hidden>
+  </div>
+
   <!-- ========== 取り込み ========== -->
   <div class="view" id="v-import">
     <section class="box" id="scanBox">
@@ -316,7 +384,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.08-3</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.08-4</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -360,7 +428,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.08-3 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.08-4 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -368,6 +436,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <button class="on" data-v="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg>納品チェック</button>
   <button data-v="issues"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5v.5"/></svg>未納品対応<span class="cnt" id="issueCnt" hidden></span></button>
   <button data-v="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>検索</button>
+  <button data-v="kinyo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M9 15l2 2 4-4"/></svg>金曜発注</button>
   <button data-v="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="13" width="4" height="4"/><path d="M13 7h4v4M7 13v4h4"/></svg>取り込み</button>
   <button data-v="more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>その他</button>
 </nav>
@@ -11125,7 +11194,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.08-3';
+  const VERSION = 'v2026.10.08-4';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -11191,7 +11260,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   let orders = [], imports = [];
   async function loadAll() {
     orders = (await getAll('orders')).map(upgrade);
-    imports = (await getAll('imports')).sort((a, b) => b.id - a.id);
+    imports = (await getAll('imports')).sort((a, b) => (b.at || 0) - (a.at || 0) || b.id - a.id);   // 新しい取り込みが先頭（バックアップから戻した分も日時の順に）
   }
 
   /* ---------- 発注書データの取り込み ----------
@@ -11258,9 +11327,10 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (view === 'import') renderHistory();
     if (view === 'more') renderStats();
     if (view === 'search') { renderSearch(); setTimeout(() => $('q').focus(), 50); }
+    if (view === 'kinyo') renderKinyo();
   }
   // 画面の再描画（今の画面と、タブの未対応件数）
-  function refresh() { renderHeader(); if (view === 'check') renderList(); if (view === 'issues') renderIssues(); if (view === 'search') renderSearch(); }
+  function refresh() { renderHeader(); if (view === 'check') renderList(); if (view === 'issues') renderIssues(); if (view === 'search') renderSearch(); if (view === 'kinyo') renderKinyo(); }
   function renderHeader() {
     const l = imports[0];
     $('lastImport').innerHTML = l ? `最終取り込み <b>${fmtShort(l.at)}</b>（発注書の出力 ${esc(md(l.printedAt))}）` : 'まだ取り込みがありません';
@@ -12057,6 +12127,446 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     });
   }
 
+  /* ---------- 金曜発注 ----------
+     薬剤師が月1回作る「確認リスト」（形式 第2版）を取り込み、毎週の確認に使う。
+     ・品目ごとに「足りている」「発注が必要（数）」を週ごとに記録する
+     ・発注が必要な品目は、商品コード（JAN）のバーコードを表示して、発注PCのスキャナーで読み取る
+     ・同じ品目の「発注済み・未納品」を、納品チェックのデータから表示する（重複発注を防ぐ）
+     ・現場で品目を足したり、目安や包装を変えたりできる（「現場で追加」「現場で変更」の印。見直しのときに使う）
+     保存場所：meta の 'kinyo'（確認リストと現場の追加・変更）と 'kinyoChecks'（週ごとの確認の記録） */
+  let kinyo = null;      // { list, importedAt, updatedAt, staffItems: [], edits: { 品目id: { jan, box, note, at } } }
+  let kchecks = {};      // { 'YYYY-MM-DD'（発注日の金曜）: { startedAt, updatedAt, res: { 品目id: { st:'ok'|'need', qty, at, need, box, sent, sentAt } } } }
+  let kSub = 'check', kFilter = 'all', kQ = '', kBarIdx = 0, kWeekSel = null;
+
+  const UNIT_JA = { T: '錠', C: 'カプセル', mlV: 'mL', Sh: 'シート', BL: 'ブリスター', 'キト': 'キット' };
+  const unitJa = u => { u = String(u || '').normalize('NFKC'); return UNIT_JA[u] || u; };
+  const DECU = /^(g|ml|mlv|l)$/i;
+  const numFmt = (v, u) => !(v > 0) ? '0' : DECU.test(String(u || '').normalize('NFKC')) ? String(Math.round(v * 10) / 10) : Math.round(v).toLocaleString();
+  const boxFmt = b => b == null ? '' : b < 0.1 ? '0.1未満' : b < 1 ? String(Math.round(b * 100) / 100) : String(Math.round(b * 10) / 10);
+  const isoD = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const wDate = w => { const [y, m, d] = w.split('-').map(Number); return new Date(y, m - 1, d); };
+  const wLabel = w => { const d = wDate(w); return `${d.getMonth() + 1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）`; };
+  // 今週の発注日：木・金はその週の金曜、土〜水は次の金曜
+  function thisFriday() { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + (5 - d.getDay() + 7) % 7); return isoD(d); }
+  const kWeek = () => kWeekSel || thisFriday();
+  function kWeekIdx(w) {
+    const W = kinyo.list.weeks; const i = W.indexOf(w);
+    if (i >= 0) return { i, note: '' };
+    if (w < W[0]) return { i: 0, note: `確認リストは ${wLabel(W[0])} 発注分からです。いちばん近い週の目安を表示しています。` };
+    return { i: W.length - 1, note: `確認リストの期間（${wLabel(W[W.length - 1])} 発注分まで）を過ぎています。最後の週の目安を表示しています。見直しの時期です。` };
+  }
+  async function kSave() { kinyo.updatedAt = Date.now(); await setMeta('kinyo', kinyo); }
+  async function kSaveChecks() { await setMeta('kinyoChecks', kchecks); }
+  function kSession(create) {
+    const w = kWeek();
+    if (!kchecks[w] && create) kchecks[w] = { startedAt: Date.now(), updatedAt: Date.now(), res: {} };
+    return kchecks[w] || { res: {} };
+  }
+
+  // 選んだ包装（初期値は確認リストの包装。現場で変えたらそれ）
+  function pkgOf(x, jan) {
+    const base = { jan: x.jan, spec: x.spec, seller: x.seller, packQty: x.packQty || 0, stop: x.stop || '' };
+    if (!jan || jan === x.jan) return base;
+    const a = (x.alts || []).find(a => a.jan === jan);
+    return a ? { jan: a.jan, spec: a.spec, seller: a.seller, packQty: a.packQty || 0, stop: a.stop || '' } : base;
+  }
+  // 表示用の品目（確認リスト＋現場で追加。今週の目安と、現場の変更を反映）
+  function kItems() {
+    if (!kinyo) return [];
+    const { i } = kWeekIdx(kWeek());
+    const base = kinyo.list.items.map(x => ({ ...x, src: 'list', needW: (x.need || [])[i] || 0, stW: (x.status || [])[i] || '' }));
+    const staff = (kinyo.staffItems || []).map(x => ({ ...x, src: 'staff', needW: 0, stW: '' }));
+    return base.concat(staff).map((x, n) => {
+      const e = kinyo.edits[x.id] || {};
+      const pk = pkgOf(x, e.jan);
+      const box = pk.packQty > 0 && x.needW > 0 ? x.needW / pk.packQty : null;
+      return { ...x, no: n + 1, pk, box, e, title: x.src === 'staff' ? x.name : (x.rname || x.name) };
+    });
+  }
+  // 同じ品目（包装違いも含む）の発注
+  //   placed：「発注が必要」にした品目で、今回の確認を始めたあとに発注書に載ったもの（発注できたことの確認）
+  //   open  ：それ以外の、まだ届いていないもの（重ねて発注しないための注意）
+  const stampOf = t => { const d = new Date(t); return `${ymd(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+  // その品目の商品コード（JAN）をすべて：リストの包装・現場で選んだ包装・ほかの包装
+  const kJans = x => [x.jan, x.pk && x.pk.jan, ...(x.alts || []).map(a => a.jan)].filter(Boolean);
+  function kOrders(x, ses) {
+    const jans = new Set(kJans(x));
+    if (!jans.size) return { open: [], placed: [] };
+    const rel = orders.filter(o => o.jan && jans.has(o.jan) && !o.cancelled);
+    const r = ses && ses.res[x.id];
+    const placed = r && r.st === 'need' && ses.startedAt ? rel.filter(o => (o.orderedAt || '') >= stampOf(ses.startedAt)) : [];
+    const open = rel.filter(o => ['open', 'partial'].includes(statusOf(o)) && !isDormant(o) && !placed.includes(o));
+    return { open, placed };
+  }
+  // 1つ（1瓶・1本・1包など）あたりの量：規格の「5mL×10瓶」「2.5g×189包」から読む。目安が mL・g のときに「約4.3瓶」と添えるため
+  function pieceOf(spec, unit) {
+    const u = String(unit || '').normalize('NFKC').toLowerCase().replace('mlv', 'ml');
+    if (u !== 'ml' && u !== 'g') return null;
+    const m = [...String(spec || '').normalize('NFKC').matchAll(/(\d+(?:\.\d+)?)\s*(mL|ml|g)\s*[×x]\s*\d+\s*(瓶|本|個|枚|包|管|袋|缶|キット|筒|シート)/g)];
+    if (!m.length) return null;
+    const last = m[m.length - 1];
+    if (last[2].toLowerCase() !== u) return null;
+    const amt = parseFloat(last[1]); return amt > 0 ? { amt, unit: last[3] } : null;
+  }
+  // 目安量の文（例：目安 150錠（1.5箱分）／目安 21.4mL（約4.3瓶・0.43箱分））
+  function needText(x, v, withB) {
+    if (!(v > 0)) return '';
+    const pc = pieceOf(x.pk ? x.pk.spec : x.spec, x.unit), bx = x.pk && x.pk.packQty > 0 ? v / x.pk.packQty : null;
+    const sub = [pc ? `約${Math.round(v / pc.amt * 10) / 10}${pc.unit}` : '', bx != null ? `${boxFmt(bx)}箱分` : ''].filter(Boolean).join('・');
+    return `${withB ? '<b>' : ''}${numFmt(v, x.unit)}${esc(unitJa(x.unit))}${withB ? '</b>' : ''}${sub ? `（${sub}）` : ''}`;
+  }
+  const orderEta = o => {
+    if (o.issue && o.issue.state === 'confirmed' && o.issue.eta) return etaText(o.issue.eta) + ' 予定';
+    if (o.eta && !o.eta.undecided && o.eta.date) return etaText(o.eta) + ' 予定';
+    return o.due ? md(o.due) + ' 指定' : '';
+  };
+
+  /* --- バーコード（JAN・EAN-13）をSVGで描く --- */
+  const EAN_L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
+  const EAN_G = ['0100111', '0110011', '0011011', '0100001', '0011101', '0111001', '0000101', '0010001', '0001001', '0010111'];
+  const EAN_R = ['1110010', '1100110', '1101100', '1000010', '1011100', '1001110', '1010000', '1000100', '1001000', '1110100'];
+  const EAN_P = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLL', 'LGLGLG', 'LGLGGL', 'LGGLGL'];
+  function eanOk(s) {
+    if (!/^\d{13}$/.test(s)) return false;
+    let t = 0; for (let i = 0; i < 12; i++) t += (+s[i]) * (i % 2 ? 3 : 1);
+    return (10 - t % 10) % 10 === +s[12];
+  }
+  function eanSvg(s) {
+    const d = s.split('').map(Number);
+    let bits = '101';
+    for (let i = 1; i <= 6; i++) bits += (EAN_P[d[0]][i - 1] === 'L' ? EAN_L : EAN_G)[d[i]];
+    bits += '01010';
+    for (let i = 7; i <= 12; i++) bits += EAN_R[d[i]];
+    bits += '101';
+    const q1 = 12, q2 = 9, W = q1 + bits.length + q2, H = 40;   // 左右の余白（クワイエットゾーン）を広めにとる
+    let p = '';
+    for (let i = 0; i < bits.length;) {
+      if (bits[i] === '1') { let j = i; while (j < bits.length && bits[j] === '1') j++; p += `M${q1 + i} 0h${j - i}v${H}h-${j - i}z`; i = j; } else i++;
+    }
+    return `<svg class="ean" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" shape-rendering="crispEdges" role="img" aria-label="バーコード ${s}"><rect width="${W}" height="${H}" fill="#fff"/><path d="${p}" fill="#000"/></svg>`;
+  }
+
+  /* --- バーコードの大きさ（このiPadで覚えておく） --- */
+  const K_BSIZE = 'kinyo.barSize';
+  let kBarSize = 3; try { kBarSize = +localStorage.getItem(K_BSIZE) || 3; } catch (e) {}
+
+  /* --- 画面 --- */
+  const kBody = $('kBody');
+  $('kSubs').addEventListener('click', e => { const b = e.target.closest('[data-ks]'); if (!b) return; kSub = b.dataset.ks; renderKinyo(); window.scrollTo(0, 0); });
+  function renderKinyo() {
+    document.querySelectorAll('#kSubs [data-ks]').forEach(b => b.classList.toggle('on', b.dataset.ks === kSub));
+    const nNeed = kinyo ? kItems().filter(x => (kSession(false).res[x.id] || {}).st === 'need').length : 0;
+    $('kBarN').textContent = nNeed ? nNeed : '';
+    if (!kinyo && kSub !== 'manage') { $('kBody').innerHTML = `<div class="empty">確認リストがまだありません。<br>「リストの管理」から、薬剤師が作った確認リストのファイルを取り込んでください。</div>`; return; }
+    if (kSub === 'check') renderKCheck();
+    else if (kSub === 'bar') renderKBar();
+    else renderKManage();
+  }
+
+  // ① 確認する
+  function renderKCheck() {
+    const w = kWeek(), wi = kWeekIdx(w), ses = kSession(false);
+    const all = kItems();
+    const nDone = all.filter(x => ses.res[x.id]).length, nNeed = all.filter(x => (ses.res[x.id] || {}).st === 'need').length;
+    const q = norm(kQ);
+    let list = all.filter(x => !q || norm([x.title, x.name, x.spec, x.pk.spec, x.jan].join(' ')).includes(q));
+    if (kFilter === 'todo') list = list.filter(x => !ses.res[x.id]);
+    if (kFilter === 'need') list = list.filter(x => (ses.res[x.id] || {}).st === 'need');
+    const weeks = [...new Set([...kinyo.list.weeks, thisFriday()])].sort();
+    let h = `<div class="kweek"><label>発注日 <select id="kWeek">${weeks.map(x => `<option value="${x}" ${x === w ? 'selected' : ''}>${wLabel(x)}${x === thisFriday() ? '・今週' : ''}</option>`).join('')}</select></label>
+      <span class="kprog">確認 <b>${nDone}</b> / ${all.length} 品目　発注が必要 <b>${nNeed}</b> 品目</span></div>
+      <div class="kbar"><span style="width:${all.length ? Math.round(nDone / all.length * 100) : 0}%"></span></div>`;
+    if (wi.note) h += `<div class="note">${esc(wi.note)}</div>`;
+    h += `<div class="filters kfil"><button class="chip ${kFilter === 'all' ? 'on' : ''}" data-kf="all">すべて<span class="n">${all.length}</span></button><button class="chip ${kFilter === 'todo' ? 'on' : ''}" data-kf="todo">まだ確認していない<span class="n">${all.length - nDone}</span></button><button class="chip ${kFilter === 'need' ? 'on' : ''}" data-kf="need">発注が必要<span class="n">${nNeed}</span></button>
+      <input type="search" id="kQ" class="kq" placeholder="リストの中を探す" value="${esc(kQ)}" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
+    if (!list.length) h += `<div class="empty">${kFilter === 'todo' ? 'すべて確認しました。「発注用バーコード」に進んでください。' : kFilter === 'need' ? '発注が必要な品目はありません。' : '当てはまる品目はありません。'}</div>`;
+    h += list.map(x => kRow(x, ses)).join('');
+    if (nDone && nDone === all.length) h += `<p style="text-align:center"><button class="btn primary big" data-ks-go="bar">発注用バーコードへ（${nNeed}品目）</button></p>`;
+    $('kBody').innerHTML = h;
+    const sel = $('kWeek'); if (sel) sel.onchange = () => { kWeekSel = sel.value === thisFriday() ? null : sel.value; renderKinyo(); };
+  }
+  function kRow(x, ses) {
+    const r = ses.res[x.id];
+    const od = kOrders(x, ses);
+    const badges = [];
+    if (x.regular) badges.push('<span class="kstar">★</span>');
+    if (x.src === 'staff') badges.push('<span class="badge manb">現場で追加</span>');
+    else if (x.e.box != null || x.e.jan || x.e.note) badges.push('<span class="badge manb">現場で変更</span>');
+    if (!x.pk.jan || !eanOk(x.pk.jan)) badges.push('<span class="badge late">バーコードなし</span>');
+    let need = '';
+    if (x.src === 'list') need = x.needW > 0 ? `目安 ${needText(x, x.needW, true)}` : '<span class="ksub">この週の土日の出庫データなし</span>';
+    if (x.e.box != null) need += `${need ? '　' : ''}<span class="kchg">現場の目安 <b>${boxFmt(x.e.box)}箱</b></span>`;
+    let ord = '';
+    if (od.placed.length) ord += `<div class="kord ok">✓ 発注書で確認：${od.placed.slice(0, 2).map(o => `${esc(o.seller)} ${o.qty}個（${esc(md(o.orderedAt.slice(0, 16)))}）`).join('、')}</div>`;
+    if (od.open.length) ord += `<div class="kord warn">発注済み・未納品：${od.open.slice(0, 3).map(o => `${esc(o.seller)} ${o.qty - (o.delivered || 0)}個${orderEta(o) ? '（' + esc(orderEta(o)) + '）' : ''}`).join('、')}${od.open.length > 3 ? ` ほか${od.open.length - 3}件` : ''}</div>`;
+    const act = r ? `<div class="kres ${r.st}">${r.st === 'ok' ? '✓ 足りている' : `発注 <b>${r.qty}</b>箱`}</div><button type="button" class="btn ksm" data-k="redo">やり直す</button>`
+      : `<button type="button" class="btn kok" data-k="ok">足りている</button><button type="button" class="btn kng" data-k="need">発注が必要</button>`;
+    return `<div class="kit ${r ? r.st : 'todo'}" data-id="${esc(x.id)}">
+      <div class="kno">${x.no}</div>
+      <div class="kb">
+        <div class="knm">${badges.join('')}${esc(x.title)}</div>
+        <div class="ksp">${esc(x.pk.spec || x.rpack || '')}${x.pk.seller ? '　' + esc(x.pk.seller) : ''}${x.pk.stop ? `　<span class="ksub">Alf-Webの発注停止日 ${esc(md(x.pk.stop))}</span>` : ''}</div>
+        ${need ? `<div class="kneed">${need}</div>` : ''}
+        ${x.memo ? `<div class="kmemo">薬剤師のメモ：${esc(x.memo)}</div>` : ''}${x.e.note ? `<div class="kmemo">現場のメモ：${esc(x.e.note)}</div>` : ''}
+        ${ord}
+        <button type="button" class="klink" data-k="detail">詳しく・変更 ›</button>
+      </div>
+      <div class="kact">${act}</div>
+    </div>`;
+  }
+  $('kBody').addEventListener('click', async e => {
+    const f = e.target.closest('[data-kf]'); if (f) { kFilter = f.dataset.kf; renderKinyo(); return; }
+    const go = e.target.closest('[data-ks-go]'); if (go) { kSub = go.dataset.ksGo; kBarIdx = 0; renderKinyo(); window.scrollTo(0, 0); return; }
+    const b = e.target.closest('[data-k]'); if (!b) return;
+    const card = b.closest('[data-id]'); const id = card && card.dataset.id;
+    const x = kItems().find(v => v.id === id);
+    const k = b.dataset.k;
+    if (k === 'detail' && x) return kDetail(x);
+    if (k === 'ok' && x) return kDecide(x, 'ok');
+    if (k === 'need' && x) return kNeedDialog(x);
+    if (k === 'redo' && x) {
+      const ses = kSession(true); const before = ses.res[id];
+      const go = async () => {
+        delete ses.res[id]; ses.updatedAt = Date.now(); await kSaveChecks(); renderKinyo();
+        toast('確認をやり直します', async () => { ses.res[id] = before; ses.updatedAt = Date.now(); await kSaveChecks(); renderKinyo(); });
+      };
+      // Alf-Webに入れたあとのやり直しは、二重に入れないよう念を押す
+      if (before && before.sent) {
+        dialog(`<h3>やり直しますか？</h3><p>「${esc(x.title)}」は、Alf-Webに入れた記録があります（${before.qty}箱）。やり直すと、この記録は消えます。</p>
+          <p>Alf-Webの発注画面にこの品目が入ったままになっていないか、数量とあわせて確かめてください。</p>
+          <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="kRedoOk">やり直す</button></div>`);
+        $('kRedoOk').addEventListener('click', () => { closeDialog(); go(); });
+        return;
+      }
+      return go();
+    }
+    // 発注用バーコード
+    if (k === 'bprev') { kBarIdx = Math.max(0, kBarIdx - 1); renderKinyo(); return; }
+    if (k === 'bnext' || k === 'bsent') {
+      const L = kNeedList(); const cur = L[kBarIdx];
+      if (k === 'bsent' && cur) { const ses = kSession(true); const r = ses.res[cur.id]; if (r) { r.sent = true; r.sentAt = Date.now(); ses.updatedAt = Date.now(); await kSaveChecks(); } }
+      kBarIdx = Math.min(L.length - 1, kBarIdx + 1); renderKinyo(); return;
+    }
+    if (k === 'bsize') { kBarSize = +b.dataset.v; try { localStorage.setItem(K_BSIZE, String(kBarSize)); } catch (er) {} renderKinyo(); return; }
+    if (k === 'bjump') { kBarIdx = +b.dataset.i; renderKinyo(); window.scrollTo(0, 0); return; }
+    if (k === 'bunsent') { const L = kNeedList(); const cur = L[kBarIdx]; const ses = kSession(true); const r = cur && ses.res[cur.id]; if (r) { r.sent = false; delete r.sentAt; await kSaveChecks(); renderKinyo(); } return; }
+    // リストの管理
+    if (k === 'import') return $('kFile').click();
+    if (k === 'add') return kAddDialog();
+    if (k === 'undoEdit') { const id2 = b.dataset.id; const it = kItems().find(v => v.id === id2); if (it) kDetail(it); return; }
+  });
+  $('kBody').addEventListener('input', e => {
+    if (e.target.id !== 'kQ') return;
+    kQ = e.target.value; clearTimeout(kBody._t);
+    kBody._t = setTimeout(() => { const pos = e.target.selectionStart; renderKinyo(); const q = $('kQ'); if (q) { q.focus(); try { q.setSelectionRange(pos, pos); } catch (er) {} } }, 250);
+  });
+
+  async function kDecide(x, st, qty) {
+    const ses = kSession(true);
+    const before = ses.res[x.id];
+    ses.res[x.id] = { st, qty: st === 'need' ? qty : 0, at: Date.now(), need: x.needW, box: x.box, staffBox: x.e.box ?? null, jan: x.pk.jan };
+    ses.updatedAt = Date.now();
+    await kSaveChecks(); renderKinyo();
+    toast(st === 'ok' ? `「${x.title}」足りている` : `「${x.title}」発注 ${qty}箱`, async () => { if (before) ses.res[x.id] = before; else delete ses.res[x.id]; await kSaveChecks(); renderKinyo(); });
+  }
+  function kNeedDialog(x) {
+    const od = kOrders(x, kSession(false));
+    const sug = x.e.box != null ? Math.max(1, Math.ceil(x.e.box - 1e-9)) : x.box != null ? Math.max(1, Math.ceil(x.box - 1e-9)) : 1;
+    const nums = [1, 2, 3, 4, 5, 6];
+    dialog(`<h3>${esc(x.title)}</h3>
+      <p>${esc(x.pk.spec || '')}${x.pk.seller ? '　発注卸：' + esc(x.pk.seller) : ''}<br>${x.needW > 0 ? `目安 ${needText(x, x.needW, false)}` : ''}${x.e.box != null ? `　現場の目安 ${boxFmt(x.e.box)}箱` : ''}</p>
+      ${od.open.length ? `<div class="note">発注済み・未納品の分があります：${od.open.map(o => `${esc(o.seller)} ${o.qty - (o.delivered || 0)}個${orderEta(o) ? '（' + esc(orderEta(o)) + '）' : ''}`).join('、')}。重ねて発注してよいか確認してください。</div>` : ''}
+      <div class="dlabel">発注する数（箱）</div>
+      <div class="numpad" id="kNum">${nums.map(n => `<button type="button" data-n="${n}" class="${n === sug ? 'on' : ''}">${n}</button>`).join('')}<button type="button" data-n="more">7以上</button></div>
+      <p id="kMoreRow" hidden><input type="number" id="kMore" inputmode="numeric" min="1" style="font-size:24px;width:6em;padding:8px;border:2px solid var(--rule);border-radius:10px"> 箱</p>
+      <p class="preview" id="kMsg"></p>
+      <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="kOk">発注が必要として記録</button></div>`);
+    let pick = sug <= 6 ? sug : 'more';
+    if (pick === 'more') { $('kMoreRow').hidden = false; $('kMore').value = sug; }
+    $('kNum').querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+      pick = btn.dataset.n === 'more' ? 'more' : +btn.dataset.n;
+      $('kNum').querySelectorAll('button').forEach(z => z.classList.toggle('on', z === btn));
+      $('kMoreRow').hidden = pick !== 'more'; if (pick === 'more') $('kMore').focus();
+    }));
+    $('kOk').addEventListener('click', () => {
+      const qty = pick === 'more' ? parseInt($('kMore').value, 10) : pick;
+      if (!(qty >= 1)) { $('kMsg').textContent = '発注する数を選んでください。'; $('kMsg').classList.add('warn'); return; }
+      closeDialog(); kDecide(x, 'need', qty);
+    });
+  }
+
+  // ② 発注用バーコード
+  const kNeedList = () => { const ses = kSession(false); return kItems().filter(x => (ses.res[x.id] || {}).st === 'need'); };
+  function renderKBar() {
+    const L = kNeedList(), ses = kSession(false);
+    if (!L.length) { $('kBody').innerHTML = `<div class="empty">発注が必要な品目はまだありません。<br>「確認する」で「発注が必要」を押した品目が、ここに順番に出ます。</div>`; return; }
+    kBarIdx = Math.max(0, Math.min(kBarIdx, L.length - 1));
+    const x = L[kBarIdx], r = ses.res[x.id], nSent = L.filter(v => ses.res[v.id].sent).length;
+    const ok = x.pk.jan && eanOk(x.pk.jan);
+    let h = `<div class="kweek"><span>発注日 ${wLabel(kWeek())}</span><span class="kprog">Alf-Webに入れた <b>${nSent}</b> / ${L.length} 品目</span></div>
+      <div class="bcard ${r.sent ? 'sent' : ''}">
+        <div class="bpos">${kBarIdx + 1} / ${L.length}${r.sent ? '　<span class="badge done">入力済み</span>' : ''}</div>
+        <div class="bname">${esc(x.title)}</div>
+        <div class="bspec">${esc(x.pk.spec || '')}${x.pk.seller ? '　発注卸：' + esc(x.pk.seller) : ''}</div>
+        <div class="bqty">数量 <b>${r.qty}</b> 箱</div>
+        ${ok ? `<div class="bwrap" style="--mod:${kBarSize}">${eanSvg(x.pk.jan)}</div><div class="bdig">${x.pk.jan}</div>`
+          : `<div class="err">商品コードがないため、バーコードを出せません。Alf-Webで品名を入れて探してください。</div>`}
+        <div class="actions bact">
+          <button type="button" class="btn" data-k="bprev" ${kBarIdx === 0 ? 'disabled' : ''}>‹ 前へ</button>
+          ${r.sent ? `<button type="button" class="btn" data-k="bunsent">入力済みを取り消す</button>` : ''}
+          <button type="button" class="btn primary" data-k="bsent">${kBarIdx === L.length - 1 ? 'Alf-Webに入れた' : 'Alf-Webに入れた → 次へ'}</button>
+        </div>
+      </div>
+      ${nSent === L.length ? `<div class="note" style="background:var(--accent-soft);color:var(--accent)"><b>すべてAlf-Webに入れました。</b>Alf-Webで発注を送信したら、ふだんどおり発注書を取り込んでください。取り込むと「確認する」の画面に「発注書で確認」と表示されます。</div>` : ''}
+      <p class="khelp">スキャナーをバーコードに向けて読み取り、Alf-Webで数量を確かめてから「Alf-Webに入れた」を押してください。読み取りにくいときは、iPadの画面を明るくするか、バーコードの大きさを変えてください。</p>
+      <div class="kbsize">バーコードの大きさ ${[[2.5, '小'], [3, '中'], [4, '大']].map(([v, t]) => `<button type="button" class="chip ${kBarSize === v ? 'on' : ''}" data-k="bsize" data-v="${v}">${t}</button>`).join('')}</div>
+      <div class="card blist">${L.map((v, i) => { const rr = ses.res[v.id]; return `<button type="button" class="brow ${i === kBarIdx ? 'cur' : ''}" data-k="bjump" data-i="${i}"><span class="bmark">${rr.sent ? '✓' : (i + 1)}</span><span class="bn">${esc(v.title)}</span><span class="bq">${rr.qty}箱</span></button>`; }).join('')}</div>`;
+    $('kBody').innerHTML = h;
+  }
+
+  // ③ リストの管理
+  function renderKManage() {
+    let h = '';
+    if (kinyo) {
+      const L = kinyo.list;
+      h += `<section class="box"><h2>確認リスト</h2><dl class="kv">
+        <dt>作成</dt><dd>${fmt(L.createdAt)}${L.app ? `（${esc(L.app)}）` : ''}</dd>
+        <dt>品目</dt><dd>${L.items.length}品目${(kinyo.staffItems || []).length ? `＋現場で追加 ${kinyo.staffItems.length}品目` : ''}</dd>
+        <dt>対象の発注日</dt><dd>${L.weeks.map(wLabel).join('・')}</dd>
+        <dt>計算に使った出庫データ</dt><dd>${esc(L.dataFrom)} 〜 ${esc(L.dataTo)}</dd>
+        <dt>取り込んだ日時</dt><dd>${fmt(kinyo.importedAt)}</dd></dl></section>`;
+    }
+    h += `<section class="box"><h2>確認リストを取り込む</h2>
+      <p style="margin-top:0">薬剤師が管理画面で作った確認リストのファイル（「金曜発注リスト_….json」）を選びます。${kinyo ? '現場で追加・変更した内容は、新しいリストに入っていない分は残ります。' : ''}</p>
+      <button type="button" class="btn primary" data-k="import">ファイルを選ぶ</button></section>`;
+    if (kinyo) {
+      const its = kItems();
+      const ch = its.filter(x => x.src === 'staff' || x.e.box != null || x.e.jan || x.e.note);
+      h += `<section class="box"><h2>現場で追加・変更した品目（${ch.length}）</h2>
+        <p style="margin-top:0;color:var(--sub);font-size:17px">月1回の見直しで、薬剤師がこの内容を確認リストに反映するか判断します。</p>
+        ${ch.length ? `<table class="t"><tbody>${ch.map(x => `<tr><td>${esc(x.title)}<div class="ksub">${x.src === 'staff' ? '現場で追加' : '現場で変更'}${x.e.box != null ? `・目安 ${boxFmt(x.e.box)}箱` : ''}${x.e.jan ? `・包装 ${esc(x.pk.spec)}` : ''}${x.e.note ? `・メモ「${esc(x.e.note)}」` : ''}</div></td><td class="n"><button type="button" class="btn ksm" data-k="undoEdit" data-id="${esc(x.id)}">開く</button></td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--sub)">まだありません。</p>'}
+        <button type="button" class="btn" data-k="add" style="margin-top:12px">＋ 品目を追加する</button></section>`;
+      const ws = Object.keys(kchecks).sort().reverse().slice(0, 8);
+      h += `<section class="box"><h2>これまでの確認</h2>${ws.length ? `<table class="t"><thead><tr><th>発注日</th><th style="text-align:right">確認した品目</th><th style="text-align:right">発注が必要</th><th style="text-align:right">Alf-Webに入れた</th></tr></thead><tbody>${ws.map(w => { const rs = Object.values(kchecks[w].res); return `<tr><td>${wLabel(w)}</td><td class="n">${rs.length}</td><td class="n">${rs.filter(r => r.st === 'need').length}</td><td class="n">${rs.filter(r => r.sent).length}</td></tr>`; }).join('')}</tbody></table>` : '<p style="color:var(--sub);margin:0">まだありません。</p>'}</section>`;
+    }
+    $('kBody').innerHTML = h;
+  }
+
+  // 確認リストのファイルを取り込む
+  $('kFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    let L;
+    try { L = JSON.parse(await f.text()); } catch (er) { return toast('このファイルは読み込めませんでした（確認リストのファイルではないようです）'); }
+    if (!L || L.type !== 'kinyo-hatchu-list') return toast('このファイルは金曜発注の確認リストではありません');
+    if (L.version !== 2 || !Array.isArray(L.items) || !Array.isArray(L.weeks)) return toast('古い形式の確認リストです（商品コードが入っていません）。管理画面を新しくしてから作り直してください');
+    const rev = new Set(L.reviewed || []), ids = new Set(L.items.map(x => x.id)), jans = new Set(L.items.map(x => x.jan).filter(Boolean));
+    const keepStaff = kinyo ? (kinyo.staffItems || []).filter(s => !rev.has(s.id) && !(s.jan && jans.has(s.jan))) : [];
+    const keepEdits = {};
+    if (kinyo) for (const [id, ed] of Object.entries(kinyo.edits || {})) if (!rev.has(id) && (ids.has(id) || keepStaff.some(s => s.id === id))) keepEdits[id] = ed;
+    const nEdits = Object.keys(keepEdits).filter(id => ids.has(id)).length;
+    const st0 = kinyo ? (kinyo.staffItems || []) : [];
+    const nIn = st0.filter(s => s.jan && jans.has(s.jan)).length, nRev = st0.filter(s => rev.has(s.id) && !(s.jan && jans.has(s.jan))).length;
+    const keepTxt = [keepStaff.length ? `現場で追加した ${keepStaff.length}品目` : '', nEdits ? `現場で変更した ${nEdits}品目` : ''].filter(Boolean).join('と、');
+    dialog(`<h3>確認リストを取り込みますか？</h3>
+      <dl class="kv" style="margin:8px 0 14px"><dt>ファイル</dt><dd style="word-break:break-all">${esc(f.name)}</dd><dt>作成</dt><dd>${fmt(L.createdAt)}</dd>
+      <dt>品目</dt><dd>${L.items.length}品目</dd><dt>対象の発注日</dt><dd>${L.weeks.map(wLabel).join('・')}</dd></dl>
+      ${kinyo ? `<p>今の確認リスト（${kinyo.list.items.length}品目）と入れ替えます。${nIn ? `現場で追加した品目のうち ${nIn}品目は、新しいリストに入っています。` : ''}${nRev ? `薬剤師が見直した ${nRev}品目は、「現場で追加」から外れます。` : ''}${keepTxt ? `まだ見直していない、${keepTxt}の内容は残します。` : ''}これまでの確認の記録も残ります。</p>` : ''}
+      <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="kImp">取り込む</button></div>`);
+    $('kImp').addEventListener('click', async () => {
+      kinyo = { list: L, importedAt: Date.now(), updatedAt: Date.now(), staffItems: keepStaff, edits: keepEdits };
+      await kSave(); closeDialog(); kSub = 'check'; kWeekSel = null; renderKinyo(); toast(`確認リストを取り込みました（${L.items.length}品目）`);
+    });
+  });
+
+  // 品目の詳しい情報と、現場での変更（目安・包装・メモ）
+  function kDetail(x) {
+    const L = kinyo.list, u = unitJa(x.unit);
+    const pk0 = x.src === 'list' ? [{ jan: x.jan, spec: x.spec, seller: x.seller, packQty: x.packQty, last: '' }].concat(x.alts || []).filter(p => p.jan) : [];
+    const boxCur = x.e.box != null ? String(x.e.box) : null;
+    dialog(`<h3>${esc(x.title)}</h3>
+      <p>${x.src === 'staff' ? '現場で追加した品目です。' : `レセコンの包装：${esc(x.rpack || '')}　単位：${esc(u)}`}</p>
+      ${x.src === 'list' ? `<div class="dlabel">週ごとの目安（土日＋月曜の一部）</div>
+        <table class="t ktbl"><tbody>${L.weeks.map((w, i) => `<tr class="${w === L.weeks[kWeekIdx(kWeek()).i] ? 'cur' : ''}"><td>${wLabel(w)}</td><td class="n">${(x.need || [])[i] > 0 ? needText(x, x.need[i], false) : '0'}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${pk0.length > 1 ? `<div class="dlabel">発注する包装</div>${opts('kPk', pk0.map(p => [p.jan, `${esc(p.spec)}（${esc(p.seller)}）`]), x.pk.jan)}` : ''}
+      <div class="dlabel">現場の目安（箱）</div>
+      ${opts('kBox', [['', x.src === 'staff' ? '決めない' : '変えない'], ['1', '1箱'], ['2', '2箱'], ['3', '3箱'], ['__n', 'その他']], boxCur == null ? '' : ['1', '2', '3'].includes(boxCur) ? boxCur : '__n')}
+      <p id="kBoxRow" ${boxCur != null && !['1', '2', '3'].includes(boxCur) ? '' : 'hidden'}><input type="number" id="kBoxN" inputmode="decimal" min="0.1" step="0.5" value="${boxCur != null ? esc(boxCur) : ''}" style="font-size:22px;width:6em;padding:8px;border:2px solid var(--rule);border-radius:10px"> 箱</p>
+      <div class="dlabel">現場のメモ</div>
+      <textarea id="kNote" placeholder="例：最近よく出るので多めに">${esc(x.e.note || '')}</textarea>
+      ${x.memo ? `<p>薬剤師のメモ：${esc(x.memo)}</p>` : ''}
+      <p class="preview" id="kDMsg"></p>
+      <div class="actions">
+        ${x.src === 'staff' ? '<button type="button" class="btn danger" id="kDel">この品目を外す</button>' : (x.e.box != null || x.e.jan || x.e.note) ? '<button type="button" class="btn danger" id="kRevert">変更を元に戻す</button>' : ''}
+        <button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="kDSave">記録する</button></div>`);
+    const getPk = $('kPk') ? bindOpts('kPk') : () => x.pk.jan;
+    const getBox = bindOpts('kBox', v => { $('kBoxRow').hidden = v !== '__n'; if (v === '__n') $('kBoxN').focus(); });
+    $('kDSave').addEventListener('click', async () => {
+      const bv = getBox();
+      let box = null;
+      if (bv === '__n') { box = parseFloat($('kBoxN').value); if (!(box > 0)) { $('kDMsg').textContent = '目安の箱数を入れてください。'; $('kDMsg').classList.add('warn'); return; } }
+      else if (bv) box = +bv;
+      const jan = getPk();
+      const ed = {};
+      if (box != null) ed.box = box;
+      if (x.src === 'list' && jan && jan !== x.jan) ed.jan = jan;
+      const note = $('kNote').value.trim(); if (note) ed.note = note;
+      if (Object.keys(ed).length) kinyo.edits[x.id] = { ...ed, at: Date.now() }; else delete kinyo.edits[x.id];
+      await kSave(); closeDialog(); renderKinyo(); toast('記録しました');
+    });
+    if ($('kRevert')) $('kRevert').addEventListener('click', async () => { delete kinyo.edits[x.id]; await kSave(); closeDialog(); renderKinyo(); toast('変更を元に戻しました'); });
+    if ($('kDel')) $('kDel').addEventListener('click', async () => {
+      kinyo.staffItems = kinyo.staffItems.filter(s => s.id !== x.id); delete kinyo.edits[x.id];
+      await kSave(); closeDialog(); renderKinyo(); toast('品目を外しました');
+    });
+  }
+
+  // 現場で品目を追加する（採用品一覧から選ぶ。見つからなければ名前だけ）
+  function kAddDialog() {
+    let sel = null, cands = [];
+    dialog(`<h3>確認リストに品目を追加する</h3>
+      <p>処方の出方を見て、確認したい品目を足します。月1回の見直しで、薬剤師がリストに入れるか判断します。</p>
+      <div class="dlabel">品名</div>
+      <div id="kaPick"><input type="search" id="kaQ" class="minput" placeholder="品名の一部（ひらがなでも可）・商品コード" autocomplete="off" autocorrect="off" spellcheck="false">
+        <div class="cands" id="kaC"><p class="chint">${master ? '品名の一部を入れると、採用品から候補が出ます。' : '採用品一覧がまだ取り込まれていません。名前だけで追加できます。'}</p></div></div>
+      <div id="kaSel" hidden><div class="selcard" id="kaCard"></div><button type="button" class="btn" id="kaRe">選び直す</button></div>
+      <div class="dlabel">目安（箱）</div>
+      ${opts('kaBox', [['', '決めない'], ['1', '1箱'], ['2', '2箱'], ['3', '3箱'], ['__n', 'その他']], '')}
+      <p id="kaBoxRow" hidden><input type="number" id="kaBoxN" inputmode="decimal" min="0.1" step="0.5" style="font-size:22px;width:6em;padding:8px;border:2px solid var(--rule);border-radius:10px"> 箱</p>
+      <div class="dlabel">現場のメモ</div><textarea id="kaNote" placeholder="例：〇〇医院の処方が増えている"></textarea>
+      <p class="preview" id="kaMsg"></p>
+      <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="kaSave">追加する</button></div>`);
+    const getBox = bindOpts('kaBox', v => { $('kaBoxRow').hidden = v !== '__n'; });
+    const show = () => {
+      $('kaPick').hidden = !!sel; $('kaSel').hidden = !sel;
+      if (sel) $('kaCard').innerHTML = `<div>${sel.jan ? '<span class="badge done">採用品</span>' : '<span class="badge newb">名前だけ</span>'}</div><div class="nm">${esc(sel.name)}</div><div class="sub">${esc(sel.spec || '')}${sel.seller ? '　発注卸：' + esc(sel.seller) : ''}${sel.jan ? '' : '　（バーコードは出せません）'}</div>`;
+    };
+    $('kaRe').addEventListener('click', () => { sel = null; show(); $('kaQ').focus(); });
+    $('kaQ').addEventListener('input', () => {
+      const raw = $('kaQ').value.trim(), q = norm(raw);
+      if (!q) { $('kaC').innerHTML = ''; return; }
+      const have = new Set(kItems().flatMap(kJans));
+      const m = masterList().filter(x => x.key.includes(q)).sort((a, b) => (a.nk.startsWith(q) ? 0 : 1) - (b.nk.startsWith(q) ? 0 : 1) || b.freq - a.freq || a.name.localeCompare(b.name, 'ja')).slice(0, 10);
+      cands = m.map(x => { const sp = splitMaster(x); return { name: sp.name.normalize('NFKC'), spec: (sp.spec || '').normalize('NFKC'), jan: x.jan, maker: x.maker, seller: x.seller, dup: have.has(x.jan) }; });
+      cands.push({ name: raw, spec: '', jan: '', seller: '', free: true });
+      $('kaC').innerHTML = cands.map((c, i) => `<button type="button" class="cand ${c.free ? 'free' : ''}" data-i="${i}"><span class="nm">${c.free ? `「${esc(c.name)}」を名前だけで追加` : esc(c.name) + ' ' + esc(c.spec)}</span><span class="sub">${c.free ? '採用品に見つからないとき' : `${esc(c.maker || '')}　発注卸：${esc(c.seller)}${c.dup ? '　<b>（確認リストに入っています）</b>' : ''}`}</span></button>`).join('');
+    });
+    $('kaC').addEventListener('click', e => { const b = e.target.closest('.cand'); if (!b) return; sel = cands[+b.dataset.i]; show(); });
+    setTimeout(() => $('kaQ').focus(), 50);
+    $('kaSave').addEventListener('click', async () => {
+      if (!sel) { $('kaMsg').textContent = '品名を選んでください。'; $('kaMsg').classList.add('warn'); return; }
+      const bv = getBox(); let box = null;
+      if (bv === '__n') { box = parseFloat($('kaBoxN').value); if (!(box > 0)) { $('kaMsg').textContent = '目安の箱数を入れてください。'; $('kaMsg').classList.add('warn'); return; } }
+      else if (bv) box = +bv;
+      const id = sel.jan ? 'jan:' + sel.jan : 'free:' + Date.now();
+      const dupX = kItems().find(x => x.id === id || (sel.jan && kJans(x).includes(sel.jan)));
+      if (dupX) { $('kaMsg').textContent = `この品目はもう確認リストに入っています（${dupX.title}）。包装を変えたいときは、その品目の「詳しく・変更」から選んでください。`; $('kaMsg').classList.add('warn'); return; }
+      kinyo.staffItems.push({ id, jan: sel.jan || '', name: sel.name, spec: sel.spec || '', seller: sel.seller || '', maker: sel.maker || '', packQty: 0, unit: '', alts: [], addedAt: Date.now() });
+      const ed = { at: Date.now() }; if (box != null) ed.box = box; const note = $('kaNote').value.trim(); if (note) ed.note = note;
+      if (box != null || note) kinyo.edits[id] = ed;
+      await kSave(); closeDialog(); renderKinyo(); toast(`「${sel.name}」を確認リストに追加しました`);
+    });
+  }
+
   /* ---------- 小窓・お知らせ ---------- */
   function dialog(html) { $('dlg').innerHTML = html; $('ov').classList.add('on'); }
   function closeDialog() { $('ov').classList.remove('on'); $('dlg').innerHTML = ''; }
@@ -12208,14 +12718,16 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const mInfo = master ? `${master.items.length.toLocaleString()}品目（${fmt(master.importedAt)} 取り込み）` : 'まだ取り込んでいません';
     const moH = mother ? mother.head.split('\t') : null;
     const moInfo = moH ? `${(+moH[3]).toLocaleString()}品目（${esc(moH[1])}、${fmt(mother.at)} 読み込み）` : 'まだ読み込んでいません（インターネットにつながっているときに自動で読み込みます）';
-    $('stats').innerHTML = `<dt>採用品一覧</dt><dd>${mInfo}</dd><dt>マザー</dt><dd>${moInfo}</dd><dt>発注の件数</dt><dd>${orders.length}件（うち未納品 ${open}件）</dd><dt>届かなかった記録</dt><dd>${iss}件（うち対応中 ${act}件）</dd><dt>取り込みの回数</dt><dd>${imports.length}回</dd><dt>アプリの版</dt><dd>${VERSION}</dd><dt>開き方</dt><dd>${isStandalone() ? 'ホーム画面のアプリ' : 'Safari（ホーム画面への追加がおすすめ）'}</dd>`;
+    const kInfo = kinyo ? `${kinyo.list.items.length}品目（${fmt(kinyo.list.createdAt)} 作成、${kinyo.list.weeks.map(wLabel).join('・')}）` : 'まだ取り込んでいません';
+    $('stats').innerHTML = `<dt>採用品一覧</dt><dd>${mInfo}</dd><dt>金曜発注の確認リスト</dt><dd>${kInfo}</dd><dt>マザー</dt><dd>${moInfo}</dd><dt>発注の件数</dt><dd>${orders.length}件（うち未納品 ${open}件）</dd><dt>届かなかった記録</dt><dd>${iss}件（うち対応中 ${act}件）</dd><dt>取り込みの回数</dt><dd>${imports.length}回</dd><dt>アプリの版</dt><dd>${VERSION}</dd><dt>開き方</dt><dd>${isStandalone() ? 'ホーム画面のアプリ' : 'Safari（ホーム画面への追加がおすすめ）'}</dd>`;
   }
   $('wipe').onclick = () => {
-    dialog(`<h3>すべてのデータを消しますか？</h3><p>取り込んだ発注、納品チェック、未納品対応、取り込みの記録がすべて消えます。バックアップがなければ、元には戻せません。</p>
+    dialog(`<h3>すべてのデータを消しますか？</h3><p>取り込んだ発注、納品チェック、未納品対応、取り込みの記録、金曜発注の確認リストと確認の記録がすべて消えます。バックアップがなければ、元には戻せません。</p>
       <div class="actions"><button class="btn" data-close>やめる</button><button class="btn danger" id="dWipe">消す</button></div>`);
     $('dWipe').onclick = async () => {
       const tx = db.transaction(['orders', 'imports'], 'readwrite');
       tx.objectStore('orders').clear(); tx.objectStore('imports').clear(); await done(tx);
+      kinyo = null; kchecks = {}; await setMeta('kinyo', null); await setMeta('kinyoChecks', {});
       await loadAll(); closeDialog(); render();
       toast('すべてのデータを消しました');
     };
@@ -12261,7 +12773,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
 
   $('bkSave').addEventListener('click', async () => {
     const now = Date.now();
-    const data = { app: 'nohin-check', format: 1, schema: SCHEMA, version: VERSION, exportedAt: now, orders, imports, master };
+    const data = { app: 'nohin-check', format: 1, schema: SCHEMA, version: VERSION, exportedAt: now, orders, imports, master, kinyo, kinyoChecks: kchecks };
     const d = new Date(now);
     const name = `納品チェック_バックアップ_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -12302,13 +12814,22 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       </div>
       <div class="actions"><button type="button" class="btn" data-close>やめる</button></div>`);
     const bMaster = data.master && Array.isArray(data.master.items) ? data.master : null;
-    $('rMerge').addEventListener('click', () => restore(bOrders, bImports, false, bMaster));
-    $('rReplace').addEventListener('click', () => restore(bOrders, bImports, true, bMaster));
+    const bK = { kinyo: data.kinyo && data.kinyo.list ? data.kinyo : null, checks: data.kinyoChecks || null };
+    $('rMerge').addEventListener('click', () => restore(bOrders, bImports, false, bMaster, bK));
+    $('rReplace').addEventListener('click', () => restore(bOrders, bImports, true, bMaster, bK));
   });
   // 最後に操作した時刻（合わせるときに、新しいほうを残すため）
   const lastTouch = o => Math.max(o.importedAt || 0, o.lastCheckedAt || 0, o.doneAt || 0, o.cancelledAt || 0,
     ...(o.issue && o.issue.log ? o.issue.log.map(x => x.at || 0) : [0]));
-  async function restore(bOrders, bImports, replace, bMaster) {
+  async function restore(bOrders, bImports, replace, bMaster, bK) {
+    // 金曜発注：確認リストは新しく操作したほうを、確認の記録は週ごとに新しく操作したほうを使う
+    let kRest = false;
+    if (bK && bK.kinyo && (replace || !kinyo || (bK.kinyo.updatedAt || 0) > (kinyo.updatedAt || 0))) { kinyo = bK.kinyo; await setMeta('kinyo', kinyo); kRest = true; }
+    if (bK && bK.checks) {
+      if (replace) kchecks = bK.checks;
+      else for (const [w, c] of Object.entries(bK.checks)) if (!kchecks[w] || (c.updatedAt || 0) > (kchecks[w].updatedAt || 0)) kchecks[w] = c;
+      await setMeta('kinyoChecks', kchecks);
+    }
     // 採用品一覧：置き換えならバックアップの分に、合わせるなら新しいほうを使う
     if (bMaster && (replace || !master || (bMaster.importedAt || 0) > (master.importedAt || 0))) { await setMeta('master', bMaster); master = bMaster; }
     const tx = db.transaction(['orders', 'imports'], 'readwrite');
@@ -12327,11 +12848,11 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         else kept++;
       });
       const seen = new Set(imports.map(l => l.at + '|' + l.printedAt));
-      bImports.forEach(l => { if (!seen.has(l.at + '|' + l.printedAt)) { const x = { ...l }; delete x.id; is.add(x); } });
+      bImports.slice().sort((a, b) => (a.at || 0) - (b.at || 0)).forEach(l => { if (!seen.has(l.at + '|' + l.printedAt)) { const x = { ...l }; delete x.id; is.add(x); } });
     }
     await done(tx);
     await loadAll(); closeDialog(); render();
-    toast(replace ? `バックアップの内容に置き換えました（${added}件）` : `戻しました：追加 ${added}件、更新 ${updated}件、そのまま ${kept}件`);
+    toast((replace ? `バックアップの内容に置き換えました（${added}件）` : `戻しました：追加 ${added}件、更新 ${updated}件、そのまま ${kept}件`) + (kRest ? '。金曜発注の確認リストも戻しました' : ''));
   }
 
   const isStandalone = () => window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
@@ -12349,6 +12870,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       lastBackup = await getMeta('lastBackup');
       master = await getMeta('master');
       mother = await getMeta('mother');
+      kinyo = await getMeta('kinyo');
+      kchecks = (await getMeta('kinyoChecks')) || {};
       syncMother(false).then(r => { if (r === 'new' && view === 'more') renderStats(); });
       if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     } catch (e) {
@@ -12361,7 +12884,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   })();
 
   // 検証用（画面の操作には使わない）
-  window.NohinApp = { importText, _take: u8 => take(u8), get orders() { return orders; }, get master() { return master; } };
+  window.NohinApp = { importText, _take: u8 => take(u8), get orders() { return orders; }, get master() { return master; },
+    get kinyo() { return kinyo; }, get kchecks() { return kchecks; }, _eanSvg: s => eanSvg(s), _eanOk: s => eanOk(s) };
 })();
 </script>
 </body>
