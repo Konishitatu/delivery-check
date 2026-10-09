@@ -233,6 +233,9 @@ ul.plan small{color:var(--sub);font-size:16px}
 .kres b{font-size:26px}
 .btn.ksm{min-height:44px;padding:4px 14px;font-size:17px}
 .ktbl tr.cur td{font-weight:700;background:var(--accent-soft)}
+.krm{color:var(--sub)}
+.kout{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:18px;padding-top:14px;border-top:1px solid var(--rule)}
+.kout span{flex:1;min-width:220px;color:var(--sub);font-size:16px}
 .bcard{background:var(--paper);border:1px solid var(--rule);border-radius:16px;padding:20px 22px;text-align:center;margin-bottom:12px}
 .bcard.sent{border-color:var(--accent)}
 .bpos{color:var(--sub);font-size:18px}
@@ -384,7 +387,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.08-4</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.09-1</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -428,7 +431,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.08-4 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.09-1 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -11194,7 +11197,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.08-4';
+  const VERSION = 'v2026.10.09-1';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -12170,19 +12173,22 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const a = (x.alts || []).find(a => a.jan === jan);
     return a ? { jan: a.jan, spec: a.spec, seller: a.seller, packQty: a.packQty || 0, stop: a.stop || '' } : base;
   }
-  // 表示用の品目（確認リスト＋現場で追加。今週の目安と、現場の変更を反映）
-  function kItems() {
+  // 品目の一覧（確認リスト＋現場で追加。今週の目安と、現場の変更を反映。現場で外した品目も含む）
+  function kAll() {
     if (!kinyo) return [];
     const { i } = kWeekIdx(kWeek());
     const base = kinyo.list.items.map(x => ({ ...x, src: 'list', needW: (x.need || [])[i] || 0, stW: (x.status || [])[i] || '' }));
     const staff = (kinyo.staffItems || []).map(x => ({ ...x, src: 'staff', needW: 0, stW: '' }));
-    return base.concat(staff).map((x, n) => {
+    return base.concat(staff).map(x => {
       const e = kinyo.edits[x.id] || {};
       const pk = pkgOf(x, e.jan);
       const box = pk.packQty > 0 && x.needW > 0 ? x.needW / pk.packQty : null;
-      return { ...x, no: n + 1, pk, box, e, title: x.src === 'staff' ? x.name : (x.rname || x.name) };
+      return { ...x, pk, box, e, removed: !!e.removed, title: x.src === 'staff' ? x.name : (x.rname || x.name) };
     });
   }
+  // 毎週確認する品目（現場で外した品目を除き、上から番号をふる）
+  function kItems() { return kAll().filter(x => !x.removed).map((x, n) => ({ ...x, no: n + 1 })); }
+  const kRemoved = () => kAll().filter(x => x.removed);
   // 同じ品目（包装違いも含む）の発注
   //   placed：「発注が必要」にした品目で、今回の確認を始めたあとに発注書に載ったもの（発注できたことの確認）
   //   open  ：それ以外の、まだ届いていないもの（重ねて発注しないための注意）
@@ -12220,6 +12226,19 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (o.eta && !o.eta.undecided && o.eta.date) return etaText(o.eta) + ' 予定';
     return o.due ? md(o.due) + ' 指定' : '';
   };
+  // 未納品の発注の状態（納品チェック・未納品対応で記録した内容）
+  const orderState = o => {
+    if (activeIssue(o)) {
+      const s = o.issue.state;
+      if (s === 'open' || holdDue(o)) return '届かなかった・未対応';
+      if (s === 'hold') return '届かなかった・保留中';
+      if (s === 'arranged') return '届かなかった・別の卸でも手配済み';
+      if (s === 'confirmed') return '届かなかった・卸に確認済み';
+    }
+    return statusOf(o) === 'partial' ? '一部だけ届いた' : '';
+  };
+  // 「発注済み・未納品」の1件分（例：アルフレッサ 1個（10/12 午前便 予定・届かなかった・卸に確認済み））
+  const kOrdText = o => { const t = [orderEta(o), orderState(o)].filter(Boolean).join('・'); return `${esc(o.seller)} ${o.qty - (o.delivered || 0)}個${t ? '（' + esc(t) + '）' : ''}`; };
 
   /* --- バーコード（JAN・EAN-13）をSVGで描く --- */
   const EAN_L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
@@ -12273,8 +12292,9 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (kFilter === 'todo') list = list.filter(x => !ses.res[x.id]);
     if (kFilter === 'need') list = list.filter(x => (ses.res[x.id] || {}).st === 'need');
     const weeks = [...new Set([...kinyo.list.weeks, thisFriday()])].sort();
+    const nRm = kRemoved().length;
     let h = `<div class="kweek"><label>発注日 <select id="kWeek">${weeks.map(x => `<option value="${x}" ${x === w ? 'selected' : ''}>${wLabel(x)}${x === thisFriday() ? '・今週' : ''}</option>`).join('')}</select></label>
-      <span class="kprog">確認 <b>${nDone}</b> / ${all.length} 品目　発注が必要 <b>${nNeed}</b> 品目</span></div>
+      <span class="kprog">確認 <b>${nDone}</b> / ${all.length} 品目　発注が必要 <b>${nNeed}</b> 品目${nRm ? `　<span class="krm">外した ${nRm} 品目</span>` : ''}</span></div>
       <div class="kbar"><span style="width:${all.length ? Math.round(nDone / all.length * 100) : 0}%"></span></div>`;
     if (wi.note) h += `<div class="note">${esc(wi.note)}</div>`;
     h += `<div class="filters kfil"><button class="chip ${kFilter === 'all' ? 'on' : ''}" data-kf="all">すべて<span class="n">${all.length}</span></button><button class="chip ${kFilter === 'todo' ? 'on' : ''}" data-kf="todo">まだ確認していない<span class="n">${all.length - nDone}</span></button><button class="chip ${kFilter === 'need' ? 'on' : ''}" data-kf="need">発注が必要<span class="n">${nNeed}</span></button>
@@ -12298,7 +12318,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (x.e.box != null) need += `${need ? '　' : ''}<span class="kchg">現場の目安 <b>${boxFmt(x.e.box)}箱</b></span>`;
     let ord = '';
     if (od.placed.length) ord += `<div class="kord ok">✓ 発注書で確認：${od.placed.slice(0, 2).map(o => `${esc(o.seller)} ${o.qty}個（${esc(md(o.orderedAt.slice(0, 16)))}）`).join('、')}</div>`;
-    if (od.open.length) ord += `<div class="kord warn">発注済み・未納品：${od.open.slice(0, 3).map(o => `${esc(o.seller)} ${o.qty - (o.delivered || 0)}個${orderEta(o) ? '（' + esc(orderEta(o)) + '）' : ''}`).join('、')}${od.open.length > 3 ? ` ほか${od.open.length - 3}件` : ''}</div>`;
+    if (od.open.length) ord += `<div class="kord warn">発注済み・未納品：${od.open.slice(0, 3).map(kOrdText).join('、')}${od.open.length > 3 ? ` ほか${od.open.length - 3}件` : ''}</div>`;
     const act = r ? `<div class="kres ${r.st}">${r.st === 'ok' ? '✓ 足りている' : `発注 <b>${r.qty}</b>箱`}</div><button type="button" class="btn ksm" data-k="redo">やり直す</button>`
       : `<button type="button" class="btn kok" data-k="ok">足りている</button><button type="button" class="btn kng" data-k="need">発注が必要</button>`;
     return `<div class="kit ${r ? r.st : 'todo'}" data-id="${esc(x.id)}">
@@ -12309,7 +12329,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         ${need ? `<div class="kneed">${need}</div>` : ''}
         ${x.memo ? `<div class="kmemo">薬剤師のメモ：${esc(x.memo)}</div>` : ''}${x.e.note ? `<div class="kmemo">現場のメモ：${esc(x.e.note)}</div>` : ''}
         ${ord}
-        <button type="button" class="klink" data-k="detail">詳しく・変更 ›</button>
+        <button type="button" class="klink" data-k="detail">詳しく・変更・外す ›</button>
       </div>
       <div class="kact">${act}</div>
     </div>`;
@@ -12354,6 +12374,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (k === 'import') return $('kFile').click();
     if (k === 'add') return kAddDialog();
     if (k === 'undoEdit') { const id2 = b.dataset.id; const it = kItems().find(v => v.id === id2); if (it) kDetail(it); return; }
+    if (k === 'restore') { const id2 = b.dataset.id; const it = kAll().find(v => v.id === id2); if (it) await kRestore(it); return; }
   });
   $('kBody').addEventListener('input', e => {
     if (e.target.id !== 'kQ') return;
@@ -12375,7 +12396,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const nums = [1, 2, 3, 4, 5, 6];
     dialog(`<h3>${esc(x.title)}</h3>
       <p>${esc(x.pk.spec || '')}${x.pk.seller ? '　発注卸：' + esc(x.pk.seller) : ''}<br>${x.needW > 0 ? `目安 ${needText(x, x.needW, false)}` : ''}${x.e.box != null ? `　現場の目安 ${boxFmt(x.e.box)}箱` : ''}</p>
-      ${od.open.length ? `<div class="note">発注済み・未納品の分があります：${od.open.map(o => `${esc(o.seller)} ${o.qty - (o.delivered || 0)}個${orderEta(o) ? '（' + esc(orderEta(o)) + '）' : ''}`).join('、')}。重ねて発注してよいか確認してください。</div>` : ''}
+      ${od.open.length ? `<div class="note">発注済み・未納品の分があります：${od.open.map(kOrdText).join('、')}。重ねて発注してよいか確認してください。</div>` : ''}
       <div class="dlabel">発注する数（箱）</div>
       <div class="numpad" id="kNum">${nums.map(n => `<button type="button" data-n="${n}" class="${n === sug ? 'on' : ''}">${n}</button>`).join('')}<button type="button" data-n="more">7以上</button></div>
       <p id="kMoreRow" hidden><input type="number" id="kMore" inputmode="numeric" min="1" style="font-size:24px;width:6em;padding:8px;border:2px solid var(--rule);border-radius:10px"> 箱</p>
@@ -12431,7 +12452,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       const L = kinyo.list;
       h += `<section class="box"><h2>確認リスト</h2><dl class="kv">
         <dt>作成</dt><dd>${fmt(L.createdAt)}${L.app ? `（${esc(L.app)}）` : ''}</dd>
-        <dt>品目</dt><dd>${L.items.length}品目${(kinyo.staffItems || []).length ? `＋現場で追加 ${kinyo.staffItems.length}品目` : ''}</dd>
+        <dt>品目</dt><dd>${L.items.length}品目${(kinyo.staffItems || []).length ? `＋現場で追加 ${kinyo.staffItems.length}品目` : ''}${kRemoved().length ? `（うち現場で外した ${kRemoved().length}品目）` : ''}</dd>
         <dt>対象の発注日</dt><dd>${L.weeks.map(wLabel).join('・')}</dd>
         <dt>計算に使った出庫データ</dt><dd>${esc(L.dataFrom)} 〜 ${esc(L.dataTo)}</dd>
         <dt>取り込んだ日時</dt><dd>${fmt(kinyo.importedAt)}</dd></dl></section>`;
@@ -12446,6 +12467,10 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         <p style="margin-top:0;color:var(--sub);font-size:17px">月1回の見直しで、薬剤師がこの内容を確認リストに反映するか判断します。</p>
         ${ch.length ? `<table class="t"><tbody>${ch.map(x => `<tr><td>${esc(x.title)}<div class="ksub">${x.src === 'staff' ? '現場で追加' : '現場で変更'}${x.e.box != null ? `・目安 ${boxFmt(x.e.box)}箱` : ''}${x.e.jan ? `・包装 ${esc(x.pk.spec)}` : ''}${x.e.note ? `・メモ「${esc(x.e.note)}」` : ''}</div></td><td class="n"><button type="button" class="btn ksm" data-k="undoEdit" data-id="${esc(x.id)}">開く</button></td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--sub)">まだありません。</p>'}
         <button type="button" class="btn" data-k="add" style="margin-top:12px">＋ 品目を追加する</button></section>`;
+      const rm = kRemoved();
+      if (rm.length) h += `<section class="box"><h2>現場で外した品目（${rm.length}）</h2>
+        <p style="margin-top:0;color:var(--sub);font-size:17px">毎週の確認には出てきません。月1回の見直しで、薬剤師が本当に外すか判断します。間違えて外したときは「元に戻す」を押してください。</p>
+        <table class="t"><tbody>${rm.map(x => `<tr><td>${esc(x.title)}<div class="ksub">${fmt(x.e.rmAt)} に外した${x.e.rmNote ? `・理由「${esc(x.e.rmNote)}」` : ''}</div></td><td class="n"><button type="button" class="btn ksm" data-k="restore" data-id="${esc(x.id)}">元に戻す</button></td></tr>`).join('')}</tbody></table></section>`;
       const ws = Object.keys(kchecks).sort().reverse().slice(0, 8);
       h += `<section class="box"><h2>これまでの確認</h2>${ws.length ? `<table class="t"><thead><tr><th>発注日</th><th style="text-align:right">確認した品目</th><th style="text-align:right">発注が必要</th><th style="text-align:right">Alf-Webに入れた</th></tr></thead><tbody>${ws.map(w => { const rs = Object.values(kchecks[w].res); return `<tr><td>${wLabel(w)}</td><td class="n">${rs.length}</td><td class="n">${rs.filter(r => r.st === 'need').length}</td><td class="n">${rs.filter(r => r.sent).length}</td></tr>`; }).join('')}</tbody></table>` : '<p style="color:var(--sub);margin:0">まだありません。</p>'}</section>`;
     }
@@ -12463,10 +12488,11 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const keepStaff = kinyo ? (kinyo.staffItems || []).filter(s => !rev.has(s.id) && !(s.jan && jans.has(s.jan))) : [];
     const keepEdits = {};
     if (kinyo) for (const [id, ed] of Object.entries(kinyo.edits || {})) if (!rev.has(id) && (ids.has(id) || keepStaff.some(s => s.id === id))) keepEdits[id] = ed;
-    const nEdits = Object.keys(keepEdits).filter(id => ids.has(id)).length;
+    const kept = Object.entries(keepEdits).filter(([id]) => ids.has(id));
+    const nEdits = kept.filter(([, ed]) => !ed.removed).length, nRmK = kept.filter(([, ed]) => ed.removed).length;
     const st0 = kinyo ? (kinyo.staffItems || []) : [];
     const nIn = st0.filter(s => s.jan && jans.has(s.jan)).length, nRev = st0.filter(s => rev.has(s.id) && !(s.jan && jans.has(s.jan))).length;
-    const keepTxt = [keepStaff.length ? `現場で追加した ${keepStaff.length}品目` : '', nEdits ? `現場で変更した ${nEdits}品目` : ''].filter(Boolean).join('と、');
+    const keepTxt = [keepStaff.length ? `現場で追加した ${keepStaff.length}品目` : '', nEdits ? `現場で変更した ${nEdits}品目` : '', nRmK ? `現場で外した ${nRmK}品目` : ''].filter(Boolean).join('、');
     dialog(`<h3>確認リストを取り込みますか？</h3>
       <dl class="kv" style="margin:8px 0 14px"><dt>ファイル</dt><dd style="word-break:break-all">${esc(f.name)}</dd><dt>作成</dt><dd>${fmt(L.createdAt)}</dd>
       <dt>品目</dt><dd>${L.items.length}品目</dd><dt>対象の発注日</dt><dd>${L.weeks.map(wLabel).join('・')}</dd></dl>
@@ -12496,8 +12522,10 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       ${x.memo ? `<p>薬剤師のメモ：${esc(x.memo)}</p>` : ''}
       <p class="preview" id="kDMsg"></p>
       <div class="actions">
-        ${x.src === 'staff' ? '<button type="button" class="btn danger" id="kDel">この品目を外す</button>' : (x.e.box != null || x.e.jan || x.e.note) ? '<button type="button" class="btn danger" id="kRevert">変更を元に戻す</button>' : ''}
-        <button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="kDSave">記録する</button></div>`);
+        ${x.src === 'list' && (x.e.box != null || x.e.jan || x.e.note) ? '<button type="button" class="btn" id="kRevert">変更を元に戻す</button>' : ''}
+        <button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="kDSave">記録する</button></div>
+      <div class="kout"><button type="button" class="btn danger" id="kOut">この品目を確認リストから外す</button>
+        <span>${x.src === 'staff' ? '現場で追加した品目なので、そのまま消えます。' : '外した品目は「リストの管理」に移り、元に戻せます。月1回の見直しで、薬剤師が本当に外すか判断します。'}</span></div>`);
     const getPk = $('kPk') ? bindOpts('kPk') : () => x.pk.jan;
     const getBox = bindOpts('kBox', v => { $('kBoxRow').hidden = v !== '__n'; if (v === '__n') $('kBoxN').focus(); });
     $('kDSave').addEventListener('click', async () => {
@@ -12514,10 +12542,43 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       await kSave(); closeDialog(); renderKinyo(); toast('記録しました');
     });
     if ($('kRevert')) $('kRevert').addEventListener('click', async () => { delete kinyo.edits[x.id]; await kSave(); closeDialog(); renderKinyo(); toast('変更を元に戻しました'); });
-    if ($('kDel')) $('kDel').addEventListener('click', async () => {
-      kinyo.staffItems = kinyo.staffItems.filter(s => s.id !== x.id); delete kinyo.edits[x.id];
-      await kSave(); closeDialog(); renderKinyo(); toast('品目を外しました');
+    $('kOut').addEventListener('click', () => kOutDialog(x));
+  }
+
+  // 確認リストから外す
+  //   確認リストの品目：「現場で外す」の印を付けて毎週の確認から外す（リストの管理から元に戻せる。見直しで薬剤師が判断する）
+  //   現場で追加した品目：そのまま消す
+  function kOutDialog(x) {
+    const r = kSession(false).res[x.id];
+    dialog(`<h3>確認リストから外しますか？</h3>
+      <p>「${esc(x.title)}」を、毎週の確認から外します。${x.src === 'staff' ? '現場で追加した品目なので、リストからそのまま消えます。' : '外した品目は「リストの管理」に移り、いつでも元に戻せます。'}</p>
+      ${r && r.st === 'need' ? `<div class="note">今週は「発注が必要（${r.qty}箱）」と記録しています。外すと「発注用バーコード」からも消えます。${r.sent ? 'Alf-Webに入れた記録もあります。Alf-Webの画面も確かめてください。' : ''}</div>` : ''}
+      ${x.src === 'list' ? `<div class="dlabel">外す理由（なくても大丈夫です。見直しのときに薬剤師が読みます）</div>
+        <textarea id="kOutNote" placeholder="例：最近出ていない／在庫が多いので確認しなくてよい">${esc(x.e.rmNote || '')}</textarea>` : ''}
+      <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn danger" id="kOutOk">外す</button></div>`);
+    $('kOutOk').addEventListener('click', async () => {
+      const beforeEd = kinyo.edits[x.id] ? { ...kinyo.edits[x.id] } : null;
+      const beforeStaff = (kinyo.staffItems || []).slice();
+      if (x.src === 'staff') {
+        kinyo.staffItems = kinyo.staffItems.filter(s => s.id !== x.id); delete kinyo.edits[x.id];
+      } else {
+        const ed = { ...(kinyo.edits[x.id] || {}), removed: true, rmAt: Date.now(), at: Date.now() };
+        const why = $('kOutNote').value.trim(); if (why) ed.rmNote = why; else delete ed.rmNote;
+        kinyo.edits[x.id] = ed;
+      }
+      await kSave(); closeDialog(); renderKinyo();
+      toast(x.src === 'staff' ? `「${x.title}」を消しました` : `「${x.title}」を確認リストから外しました（リストの管理から戻せます）`, async () => {
+        kinyo.staffItems = beforeStaff;
+        if (beforeEd) kinyo.edits[x.id] = beforeEd; else delete kinyo.edits[x.id];
+        await kSave(); renderKinyo();
+      });
     });
+  }
+  // 外した品目を元に戻す（外す前の、目安・包装・メモの変更はそのまま）
+  async function kRestore(x) {
+    const ed = { ...(kinyo.edits[x.id] || {}) }; delete ed.removed; delete ed.rmAt; delete ed.rmNote;
+    if (ed.box != null || ed.jan || ed.note) kinyo.edits[x.id] = { ...ed, at: Date.now() }; else delete kinyo.edits[x.id];
+    await kSave(); renderKinyo(); toast(`「${x.title}」を確認リストに戻しました`);
   }
 
   // 現場で品目を追加する（採用品一覧から選ぶ。見つからなければ名前だけ）
@@ -12544,11 +12605,13 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     $('kaQ').addEventListener('input', () => {
       const raw = $('kaQ').value.trim(), q = norm(raw);
       if (!q) { $('kaC').innerHTML = ''; return; }
-      const have = new Set(kItems().flatMap(kJans));
+      // すでにある品目（包装違いも含む）：in＝確認リストに入っている／rm＝現場で外した
+      const have = new Map(); kAll().forEach(x => kJans(x).forEach(j => { if (!x.removed || !have.has(j)) have.set(j, x.removed ? 'rm' : 'in'); }));
       const m = masterList().filter(x => x.key.includes(q)).sort((a, b) => (a.nk.startsWith(q) ? 0 : 1) - (b.nk.startsWith(q) ? 0 : 1) || b.freq - a.freq || a.name.localeCompare(b.name, 'ja')).slice(0, 10);
-      cands = m.map(x => { const sp = splitMaster(x); return { name: sp.name.normalize('NFKC'), spec: (sp.spec || '').normalize('NFKC'), jan: x.jan, maker: x.maker, seller: x.seller, dup: have.has(x.jan) }; });
+      cands = m.map(x => { const sp = splitMaster(x); return { name: sp.name.normalize('NFKC'), spec: (sp.spec || '').normalize('NFKC'), jan: x.jan, maker: x.maker, seller: x.seller, dup: have.get(x.jan) || '' }; });
       cands.push({ name: raw, spec: '', jan: '', seller: '', free: true });
-      $('kaC').innerHTML = cands.map((c, i) => `<button type="button" class="cand ${c.free ? 'free' : ''}" data-i="${i}"><span class="nm">${c.free ? `「${esc(c.name)}」を名前だけで追加` : esc(c.name) + ' ' + esc(c.spec)}</span><span class="sub">${c.free ? '採用品に見つからないとき' : `${esc(c.maker || '')}　発注卸：${esc(c.seller)}${c.dup ? '　<b>（確認リストに入っています）</b>' : ''}`}</span></button>`).join('');
+      const dupTxt = { in: '　<b>（確認リストに入っています）</b>', rm: '　<b>（外した品目です。選ぶと元に戻します）</b>' };
+      $('kaC').innerHTML = cands.map((c, i) => `<button type="button" class="cand ${c.free ? 'free' : ''}" data-i="${i}"><span class="nm">${c.free ? `「${esc(c.name)}」を名前だけで追加` : esc(c.name) + ' ' + esc(c.spec)}</span><span class="sub">${c.free ? '採用品に見つからないとき' : `${esc(c.maker || '')}　発注卸：${esc(c.seller)}${dupTxt[c.dup] || ''}`}</span></button>`).join('');
     });
     $('kaC').addEventListener('click', e => { const b = e.target.closest('.cand'); if (!b) return; sel = cands[+b.dataset.i]; show(); });
     setTimeout(() => $('kaQ').focus(), 50);
@@ -12558,10 +12621,18 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       if (bv === '__n') { box = parseFloat($('kaBoxN').value); if (!(box > 0)) { $('kaMsg').textContent = '目安の箱数を入れてください。'; $('kaMsg').classList.add('warn'); return; } }
       else if (bv) box = +bv;
       const id = sel.jan ? 'jan:' + sel.jan : 'free:' + Date.now();
-      const dupX = kItems().find(x => x.id === id || (sel.jan && kJans(x).includes(sel.jan)));
-      if (dupX) { $('kaMsg').textContent = `この品目はもう確認リストに入っています（${dupX.title}）。包装を変えたいときは、その品目の「詳しく・変更」から選んでください。`; $('kaMsg').classList.add('warn'); return; }
+      const note = $('kaNote').value.trim();
+      const all = kAll(), same = x => x.id === id || (sel.jan && kJans(x).includes(sel.jan));
+      const dupX = all.find(x => !x.removed && same(x)), rmX = !dupX && all.find(x => x.removed && same(x));
+      if (dupX) { $('kaMsg').textContent = `この品目はもう確認リストに入っています（${dupX.title}）。包装を変えたいときは、その品目の「詳しく・変更・外す」から選んでください。`; $('kaMsg').classList.add('warn'); return; }
+      if (rmX) {   // 外した品目なら、追加ではなく元に戻す（入れた目安・メモはその品目に記録）
+        const ed = { ...(kinyo.edits[rmX.id] || {}) }; delete ed.removed; delete ed.rmAt; delete ed.rmNote;
+        if (box != null) ed.box = box; if (note) ed.note = note;
+        if (ed.box != null || ed.jan || ed.note) kinyo.edits[rmX.id] = { ...ed, at: Date.now() }; else delete kinyo.edits[rmX.id];
+        await kSave(); closeDialog(); renderKinyo(); toast(`外していた「${rmX.title}」を確認リストに戻しました`); return;
+      }
       kinyo.staffItems.push({ id, jan: sel.jan || '', name: sel.name, spec: sel.spec || '', seller: sel.seller || '', maker: sel.maker || '', packQty: 0, unit: '', alts: [], addedAt: Date.now() });
-      const ed = { at: Date.now() }; if (box != null) ed.box = box; const note = $('kaNote').value.trim(); if (note) ed.note = note;
+      const ed = { at: Date.now() }; if (box != null) ed.box = box; if (note) ed.note = note;
       if (box != null || note) kinyo.edits[id] = ed;
       await kSave(); closeDialog(); renderKinyo(); toast(`「${sel.name}」を確認リストに追加しました`);
     });
