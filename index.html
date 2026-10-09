@@ -387,7 +387,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.09-1</b></p>
+      <p style="margin-top:0">このアプリの版：<b>2026.10.09-2</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -431,7 +431,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.09-1 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック 2026.10.09-2 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -11197,7 +11197,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.09-1';
+  const VERSION = '2026.10.09-2';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -12145,7 +12145,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   const unitJa = u => { u = String(u || '').normalize('NFKC'); return UNIT_JA[u] || u; };
   const DECU = /^(g|ml|mlv|l)$/i;
   const numFmt = (v, u) => !(v > 0) ? '0' : DECU.test(String(u || '').normalize('NFKC')) ? String(Math.round(v * 10) / 10) : Math.round(v).toLocaleString();
-  const boxFmt = b => b == null ? '' : b < 0.1 ? '0.1未満' : b < 1 ? String(Math.round(b * 100) / 100) : String(Math.round(b * 10) / 10);
+  const boxFmt = b => b == null ? '' : b < 0.01 ? '0.01未満' : b < 1 ? String(Math.round(b * 100) / 100) : String(Math.round(b * 10) / 10);
   const isoD = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const wDate = w => { const [y, m, d] = w.split('-').map(Number); return new Date(y, m - 1, d); };
   const wLabel = w => { const d = wDate(w); return `${d.getMonth() + 1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）`; };
@@ -12156,7 +12156,9 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const W = kinyo.list.weeks; const i = W.indexOf(w);
     if (i >= 0) return { i, note: '' };
     if (w < W[0]) return { i: 0, note: `確認リストは ${wLabel(W[0])} 発注分からです。いちばん近い週の目安を表示しています。` };
-    return { i: W.length - 1, note: `確認リストの期間（${wLabel(W[W.length - 1])} 発注分まで）を過ぎています。最後の週の目安を表示しています。見直しの時期です。` };
+    if (w > W[W.length - 1]) return { i: W.length - 1, note: `確認リストの期間（${wLabel(W[W.length - 1])} 発注分まで）を過ぎています。最後の週の目安を表示しています。見直しの時期です。` };
+    let j = 0; W.forEach((x, k) => { if (x <= w) j = k; });   // 期間の途中で日付が合わないときは、直前の週
+    return { i: j, note: '' };
   }
   async function kSave() { kinyo.updatedAt = Date.now(); await setMeta('kinyo', kinyo); }
   async function kSaveChecks() { await setMeta('kinyoChecks', kchecks); }
@@ -12214,12 +12216,34 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (last[2].toLowerCase() !== u) return null;
     const amt = parseFloat(last[1]); return amt > 0 ? { amt, unit: last[3] } : null;
   }
-  // 目安量の文（例：目安 150錠（1.5箱分）／目安 21.4mL（約4.3瓶・0.43箱分））
+  // 目安の出し方：ふだんは整数の箱数（発注する包装の箱で数え、切り上げ）。
+  // 管理画面で「バラで表示」にした品目と、箱の大きさが分からない品目は、バラ（錠・mLなど）で出す
+  const boxN = (x, v) => x.pk && x.pk.packQty > 0 && v > 0 ? Math.max(1, Math.ceil(v / x.pk.packQty - 1e-9)) : null;
+  const useBox = x => !x.bara && x.pk && x.pk.packQty > 0;
+  // 一覧に出す目安（例：2箱／300錠）
+  function needMain(x, v) {
+    if (!(v > 0)) return '';
+    return useBox(x) ? `${boxN(x, v)}箱` : `${numFmt(v, x.unit)}${esc(unitJa(x.unit))}`;
+  }
+  // 小窓に出す目安（例：2箱（出庫からの量 150錠・1.5箱分）／300錠（0.3箱分））
+  function needDetail(x, v) {
+    if (!(v > 0)) return '0';
+    if (!useBox(x)) return needText(x, v, false);
+    const p = needParts(x, v);
+    return `${boxN(x, v)}箱（出庫からの量 ${[p.amt].concat(p.sub).join('・')}）`;
+  }
+  // 容器ごとの品目（外用剤）の目安：その容器の、ふだん1回の入庫の箱数
+  const contTyp = x => Math.max(1, Math.round(x.cont.typ || 1));
+  const contInfo = x => `この容器の入庫：過去${x.cont.m}週のうち${x.cont.wk}週（金・土 ${x.cont.fs}週）`;
+  // 目安量の文（例：150錠（1.5箱分）／21.4mL（約4.3瓶・0.43箱分））
+  function needParts(x, v) {
+    const pc = pieceOf(x.pk ? x.pk.spec : x.spec, x.unit), bx = x.pk && x.pk.packQty > 0 ? v / x.pk.packQty : null;
+    return { amt: `${numFmt(v, x.unit)}${esc(unitJa(x.unit))}`, sub: [pc ? `約${Math.round(v / pc.amt * 10) / 10}${pc.unit}` : '', bx != null ? `${boxFmt(bx)}箱分` : ''].filter(Boolean) };
+  }
   function needText(x, v, withB) {
     if (!(v > 0)) return '';
-    const pc = pieceOf(x.pk ? x.pk.spec : x.spec, x.unit), bx = x.pk && x.pk.packQty > 0 ? v / x.pk.packQty : null;
-    const sub = [pc ? `約${Math.round(v / pc.amt * 10) / 10}${pc.unit}` : '', bx != null ? `${boxFmt(bx)}箱分` : ''].filter(Boolean).join('・');
-    return `${withB ? '<b>' : ''}${numFmt(v, x.unit)}${esc(unitJa(x.unit))}${withB ? '</b>' : ''}${sub ? `（${sub}）` : ''}`;
+    const p = needParts(x, v);
+    return `${withB ? '<b>' : ''}${p.amt}${withB ? '</b>' : ''}${p.sub.length ? `（${p.sub.join('・')}）` : ''}`;
   }
   const orderEta = o => {
     if (o.issue && o.issue.state === 'confirmed' && o.issue.eta) return etaText(o.issue.eta) + ' 予定';
@@ -12314,7 +12338,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     else if (x.e.box != null || x.e.jan || x.e.note) badges.push('<span class="badge manb">現場で変更</span>');
     if (!x.pk.jan || !eanOk(x.pk.jan)) badges.push('<span class="badge late">バーコードなし</span>');
     let need = '';
-    if (x.src === 'list') need = x.needW > 0 ? `目安 ${needText(x, x.needW, true)}` : '<span class="ksub">この週の土日の出庫データなし</span>';
+    if (x.src === 'list' && x.cont) need = `目安 <b>${contTyp(x)}箱</b><span class="ksub">　${esc(contInfo(x))}</span>`;
+    else if (x.src === 'list') need = x.needW > 0 ? `目安 <b>${needMain(x, x.needW)}</b>${!useBox(x) && x.pk.packQty > 0 ? `<span class="ksub">（1箱＝${numFmt(x.pk.packQty, x.unit)}${esc(unitJa(x.unit))}）</span>` : ''}` : '<span class="ksub">この週の土日の出庫データなし</span>';
     if (x.e.box != null) need += `${need ? '　' : ''}<span class="kchg">現場の目安 <b>${boxFmt(x.e.box)}箱</b></span>`;
     let ord = '';
     if (od.placed.length) ord += `<div class="kord ok">✓ 発注書で確認：${od.placed.slice(0, 2).map(o => `${esc(o.seller)} ${o.qty}個（${esc(md(o.orderedAt.slice(0, 16)))}）`).join('、')}</div>`;
@@ -12392,10 +12417,10 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   }
   function kNeedDialog(x) {
     const od = kOrders(x, kSession(false));
-    const sug = x.e.box != null ? Math.max(1, Math.ceil(x.e.box - 1e-9)) : x.box != null ? Math.max(1, Math.ceil(x.box - 1e-9)) : 1;
+    const sug = x.e.box != null ? Math.max(1, Math.ceil(x.e.box - 1e-9)) : x.cont ? contTyp(x) : x.box != null ? Math.max(1, Math.ceil(x.box - 1e-9)) : 1;
     const nums = [1, 2, 3, 4, 5, 6];
     dialog(`<h3>${esc(x.title)}</h3>
-      <p>${esc(x.pk.spec || '')}${x.pk.seller ? '　発注卸：' + esc(x.pk.seller) : ''}<br>${x.needW > 0 ? `目安 ${needText(x, x.needW, false)}` : ''}${x.e.box != null ? `　現場の目安 ${boxFmt(x.e.box)}箱` : ''}</p>
+      <p>${esc(x.pk.spec || '')}${x.pk.seller ? '　発注卸：' + esc(x.pk.seller) : ''}<br>${x.cont ? `目安 ${contTyp(x)}箱（ふだん1回の入庫）<br><span class="ksub">${esc(contInfo(x))}</span>` : x.needW > 0 ? `目安 ${needDetail(x, x.needW)}` : ''}${x.e.box != null ? `　現場の目安 ${boxFmt(x.e.box)}箱` : ''}</p>
       ${od.open.length ? `<div class="note">発注済み・未納品の分があります：${od.open.map(kOrdText).join('、')}。重ねて発注してよいか確認してください。</div>` : ''}
       <div class="dlabel">発注する数（箱）</div>
       <div class="numpad" id="kNum">${nums.map(n => `<button type="button" data-n="${n}" class="${n === sug ? 'on' : ''}">${n}</button>`).join('')}<button type="button" data-n="more">7以上</button></div>
@@ -12511,8 +12536,12 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const boxCur = x.e.box != null ? String(x.e.box) : null;
     dialog(`<h3>${esc(x.title)}</h3>
       <p>${x.src === 'staff' ? '現場で追加した品目です。' : `レセコンの包装：${esc(x.rpack || '')}　単位：${esc(u)}`}</p>
-      ${x.src === 'list' ? `<div class="dlabel">週ごとの目安（土日＋月曜の一部）</div>
-        <table class="t ktbl"><tbody>${L.weeks.map((w, i) => `<tr class="${w === L.weeks[kWeekIdx(kWeek()).i] ? 'cur' : ''}"><td>${wLabel(w)}</td><td class="n">${(x.need || [])[i] > 0 ? needText(x, x.need[i], false) : '0'}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${x.src === 'list' && x.cont ? `<div class="dlabel">この容器の目安</div>
+        <p>ふだん1回の入庫の <b>${contTyp(x)}箱</b>（${esc(contInfo(x))}）</p>
+        <div class="dlabel">この薬の週末の出庫（すべての容器の合計。参考）</div>
+        <table class="t ktbl"><tbody>${L.weeks.map((w, i) => `<tr class="${w === L.weeks[kWeekIdx(kWeek()).i] ? 'cur' : ''}"><td>${wLabel(w)}</td><td class="n">${(x.drugNeed || [])[i] > 0 ? numFmt(x.drugNeed[i], x.unit) + esc(unitJa(x.unit)) : '0'}</td></tr>`).join('')}</tbody></table>`
+      : x.src === 'list' ? `<div class="dlabel">週ごとの目安（金曜の午後〜月曜の午前）</div>
+        <table class="t ktbl"><tbody>${L.weeks.map((w, i) => `<tr class="${w === L.weeks[kWeekIdx(kWeek()).i] ? 'cur' : ''}"><td>${wLabel(w)}</td><td class="n">${(x.need || [])[i] > 0 ? needDetail(x, x.need[i]) : '0'}</td></tr>`).join('')}</tbody></table>` : ''}
       ${pk0.length > 1 ? `<div class="dlabel">発注する包装</div>${opts('kPk', pk0.map(p => [p.jan, `${esc(p.spec)}（${esc(p.seller)}）`]), x.pk.jan)}` : ''}
       <div class="dlabel">現場の目安（箱）</div>
       ${opts('kBox', [['', x.src === 'staff' ? '決めない' : '変えない'], ['1', '1箱'], ['2', '2箱'], ['3', '3箱'], ['__n', 'その他']], boxCur == null ? '' : ['1', '2', '3'].includes(boxCur) ? boxCur : '__n')}
