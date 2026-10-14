@@ -194,6 +194,10 @@ ul.plan small{color:var(--sub);font-size:16px}
 .selcard .sub{font-size:16px;color:var(--sub);margin-left:6px}
 .badge.newb{background:#FDE7C8;color:#8A4A00}
 .badge.manb{background:#EFE7F7;color:#5B3A87}
+.badge.kearly{background:#C2410C;color:#fff}
+.ksec{font-weight:700;font-size:18px;margin:16px 4px 6px;color:var(--ink)}
+.ksec.early{color:#C2410C}
+.kearlyp{color:#C2410C;font-weight:700}
 .dialog input[type=datetime-local]{font:inherit;font-size:20px;padding:8px 12px;border:2px solid var(--rule);border-radius:10px;background:#fff;color:var(--ink)}
 .sbox{display:flex;gap:10px;margin-bottom:12px}
 /* ---- 金曜発注 ---- */
@@ -387,7 +391,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>2026.10.09-3</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.14-1</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -431,7 +435,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック 2026.10.09-3 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.14-1 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -11197,7 +11201,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = '2026.10.09-3';
+  const VERSION = 'v2026.10.14-1';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -12186,7 +12190,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       const pk = pkgOf(x, e.jan);
       const box = pk.packQty > 0 && x.needW > 0 ? x.needW / pk.packQty : null;
       return { ...x, pk, box, e, removed: !!e.removed, title: x.src === 'staff' ? x.name : (x.rname || x.name) };
-    });
+    }).sort((a, b) => (b.early ? 1 : 0) - (a.early ? 1 : 0));   // 薬剤師が「早めに確認」にした品目（出荷調整など）を上にまとめる
   }
   // 毎週確認する品目（現場で外した品目を除き、上から番号をふる）
   function kItems() { return kAll().filter(x => !x.removed).map((x, n) => ({ ...x, no: n + 1 })); }
@@ -12336,7 +12340,9 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     h += `<div class="filters kfil"><button class="chip ${kFilter === 'all' ? 'on' : ''}" data-kf="all">すべて<span class="n">${all.length}</span></button><button class="chip ${kFilter === 'todo' ? 'on' : ''}" data-kf="todo">まだ確認していない<span class="n">${all.length - nDone}</span></button><button class="chip ${kFilter === 'need' ? 'on' : ''}" data-kf="need">発注が必要<span class="n">${nNeed}</span></button>
       <input type="search" id="kQ" class="kq" placeholder="リストの中を探す" value="${esc(kQ)}" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
     if (!list.length) h += `<div class="empty">${kFilter === 'todo' ? 'すべて確認しました。「発注用バーコード」に進んでください。' : kFilter === 'need' ? '発注が必要な品目はありません。' : '当てはまる品目はありません。'}</div>`;
-    h += list.map(x => kRow(x, ses)).join('');
+    const nE = list.filter(x => x.early).length;
+    h += list.map((x, i) => (nE && i === 0 && x.early ? `<div class="ksec early">⚑ 早めに確認する品目（${nE}）</div>` : '') +
+      (nE && !x.early && (i === 0 || list[i - 1].early) ? '<div class="ksec">ほかの品目</div>' : '') + kRow(x, ses)).join('');
     if (nDone && nDone === all.length) h += `<p style="text-align:center"><button class="btn primary big" data-ks-go="bar">発注用バーコードへ（${nNeed}品目）</button></p>`;
     $('kBody').innerHTML = h;
     const sel = $('kWeek'); if (sel) sel.onchange = () => { kWeekSel = sel.value === thisFriday() ? null : sel.value; renderKinyo(); };
@@ -12345,6 +12351,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const r = ses.res[x.id];
     const od = kOrders(x, ses);
     const badges = [];
+    if (x.early) badges.push(`<span class="badge kearly">⚑ 早めに確認${x.early.note ? '：' + esc(x.early.note) : ''}</span>`);
     if (x.regular) badges.push('<span class="kstar">★</span>');
     if (x.src === 'staff') badges.push('<span class="badge manb">現場で追加</span>');
     else if (x.e.box != null || x.e.jan || x.e.note) badges.push('<span class="badge manb">現場で変更</span>');
@@ -12362,7 +12369,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       <div class="kno">${x.no}</div>
       <div class="kb">
         <div class="knm">${badges.join('')}${esc(x.title)}</div>
-        <div class="ksp">${esc(x.pk.spec || x.rpack || '')}${x.pk.seller ? '　' + esc(x.pk.seller) : ''}${x.pk.stop ? `　<span class="ksub">Alf-Webの発注停止日 ${esc(md(x.pk.stop))}</span>` : ''}</div>
+        <div class="ksp">${esc(x.pk.spec || '')}${x.pk.seller ? '　' + esc(x.pk.seller) : ''}${x.pk.stop ? `　<span class="ksub">Alf-Webの発注停止日 ${esc(md(x.pk.stop))}</span>` : ''}</div>
         ${need ? `<div class="kneed">${need}</div>` : ''}
         ${x.memo ? `<div class="kmemo">薬剤師のメモ：${esc(x.memo)}</div>` : ''}${x.e.note ? `<div class="kmemo">現場のメモ：${esc(x.e.note)}</div>` : ''}
         ${ord}
@@ -12550,7 +12557,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const pk0 = x.src === 'list' ? [{ jan: x.jan, spec: x.spec, seller: x.seller, packQty: x.packQty, last: '' }].concat(x.alts || []).filter(p => p.jan) : [];
     const boxCur = x.e.box != null ? String(x.e.box) : null;
     dialog(`<h3>${esc(x.title)}</h3>
-      <p>${x.src === 'staff' ? '現場で追加した品目です。' : `レセコンの包装：${esc(x.rpack || '')}　単位：${esc(u)}`}</p>
+      ${x.early ? `<p class="kearlyp">⚑ 早めに確認する品目${x.early.note ? `（${esc(x.early.note)}）` : ''}</p>` : ''}
+      <p>${x.src === 'staff' ? '現場で追加した品目です。' : `単位：${esc(u)}`}</p>
       ${x.src === 'list' && x.cont ? `<div class="dlabel">この容器の目安</div>
         <p>${x.fix && x.fix.box > 0 ? `薬剤師が決めた <b>${contTyp(x)}箱</b>（ふだん1回の入庫は ${Math.max(1, Math.round(x.cont.typ || 1))}箱。${esc(contInfo(x))}）` : `ふだん1回の入庫の <b>${contTyp(x)}箱</b>（${esc(contInfo(x))}）`}</p>
         <div class="dlabel">この薬の週末の出庫（すべての容器の合計。参考）</div>
