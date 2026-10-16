@@ -75,12 +75,31 @@ nav.tabs button.on{color:var(--accent);font-weight:700}
 .qty{font-size:26px;font-weight:700;white-space:nowrap}
 .qty small{font-size:17px;color:var(--sub);font-weight:400}
 .partbtn{border:2px solid var(--part);color:var(--part);background:var(--paper);border-radius:10px;padding:4px 16px;min-height:44px;font-weight:700;font-size:18px}
+/* 納品チェックの行：品名を押すと、下に「一部だけ届いた」「届かなかった」を出す */
+.item{flex-wrap:wrap}
+.item.hasmore .body{cursor:pointer}
+.item .side{flex-direction:row;align-items:center;gap:4px}
+.morebtn{border:0;background:none;color:var(--sub);font-size:34px;line-height:1;min-width:48px;min-height:48px;padding:0;display:flex;align-items:center;justify-content:center}
+.morebtn span{display:inline-block;transition:transform .15s}
+.item.xo .morebtn span{transform:rotate(90deg)}
+.item>.more{display:none;flex-basis:100%;gap:12px;justify-content:flex-end;flex-wrap:wrap;padding:0 18px 14px 96px}
+.item.xo>.more{display:flex}
+.item.xo{background:#F4F8F7}
+.item>.more .partbtn,.item>.more .nobtn{min-height:54px;padding:6px 22px;font-size:19px}
+.hint{color:var(--sub);font-size:17px;margin:4px 2px 10px}
 .item.done .body{opacity:.7}
 .empty{background:var(--paper);border:1px solid var(--rule);border-radius:14px;padding:40px 20px;text-align:center;color:var(--sub)}
 
 /* ---- 取り込み ---- */
 section.box{background:var(--paper);border:1px solid var(--rule);border-radius:14px;padding:20px 22px;margin-bottom:18px}
 section.box h2{font-size:22px;margin:0 0 10px}
+/* 「その他」でふだん使わないもの：押すと開く */
+details.box.mbox{display:block;background:var(--paper);border:1px solid var(--rule);border-radius:14px;padding:16px 22px;margin-bottom:12px}
+details.box.mbox>summary{list-style:none;cursor:pointer;font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px;min-height:32px}
+details.box.mbox>summary::-webkit-details-marker{display:none}
+details.box.mbox>summary::before{content:'▶';font-size:14px;color:var(--sub);transition:transform .15s}
+details.box.mbox[open]>summary::before{transform:rotate(90deg)}
+details.box.mbox[open]>summary{margin-bottom:12px}
 .cam{position:relative;background:#000;border-radius:14px;overflow:hidden;border:6px solid transparent;transition:border-color .15s;margin-top:12px}
 .cam.hit{border-color:#3FB68B}
 .cam video{display:block;width:100%;max-height:58vh;object-fit:contain}
@@ -227,6 +246,8 @@ ul.plan small{color:var(--sub);font-size:16px}
 .kord.warn{background:var(--late-bg);color:var(--late)}
 .kord.ok{background:var(--accent-soft);color:var(--accent)}
 .klink{border:0;background:none;color:var(--accent);font-weight:700;font-size:17px;padding:6px 0 0;min-height:40px}
+.kb[data-k]{cursor:pointer}
+.kchev{color:var(--sub);font-weight:400;margin-left:8px}
 .kact{flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:8px;padding:10px 14px}
 .kact .btn{min-width:150px;font-size:19px;padding:10px 16px}
 .kact .kok{border-color:var(--accent);color:var(--accent)}
@@ -318,6 +339,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <button class="chip" data-f="done">納品済み（直近7日）<span class="n" id="n-done"></span></button>
       <button class="chip" data-f="all">すべて（直近7日）<span class="n" id="n-all"></span></button>
     </div>
+    <p class="hint">届いたら、左の ◯ を押します。一部だけ届いたとき・届かなかったときは、品名を押してください。</p>
     <div id="list"></div>
   </div>
 
@@ -391,7 +413,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.16-1</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.16-2</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -415,13 +437,13 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       </div>
     </section>
 
-    <section class="box">
-      <h2>保存しているデータ</h2>
+    <details class="box mbox">
+      <summary>保存しているデータ</summary>
       <dl class="kv" id="stats"></dl>
       <p style="color:var(--sub);font-size:17px">データはこのiPadの中だけに保存され、外部には送信されません。</p>
-    </section>
-    <section class="box">
-      <h2>ホーム画面への追加方法</h2>
+    </details>
+    <details class="box mbox">
+      <summary>ホーム画面への追加方法</summary>
       <ol class="howto">
         <li>Safariでこのページを開く</li>
         <li>画面右上の「共有」ボタン（四角から上向きの矢印が出ている形）を押す</li>
@@ -429,22 +451,22 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
         <li>右上の「追加」を押す</li>
         <li>以後は、ホーム画面の「納品チェック」のアイコンから開く</li>
       </ol>
-    </section>
-    <section class="box">
-      <h2>すべてのデータを消す</h2>
+    </details>
+    <details class="box mbox">
+      <summary>すべてのデータを消す</summary>
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
-    </section>
-    <footer>納品チェック v2026.10.16-1 ／ データはこのiPadの中だけに保存されます</footer>
+    </details>
+    <footer>納品チェック v2026.10.16-2 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
 <nav class="tabs" id="tabs">
+  <button data-v="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="13" width="4" height="4"/><path d="M13 7h4v4M7 13v4h4"/></svg>取り込み</button>
   <button class="on" data-v="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg>納品チェック</button>
   <button data-v="issues"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5v.5"/></svg>未納品対応<span class="cnt" id="issueCnt" hidden></span></button>
-  <button data-v="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>検索</button>
   <button data-v="kinyo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M9 15l2 2 4-4"/></svg>金曜発注</button>
-  <button data-v="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="13" width="4" height="4"/><path d="M13 7h4v4M7 13v4h4"/></svg>取り込み</button>
+  <button data-v="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>検索</button>
   <button data-v="more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>その他</button>
 </nav>
 
@@ -11201,7 +11223,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.16-1';
+  const VERSION = 'v2026.10.16-2';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -11471,6 +11493,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     $('list').innerHTML = html;
   }
 
+  const rowOpen = new Set();   // 納品チェックで「ほかの操作」を開いている行
   function rowHtml(o, t) {
     const st = statusOf(o);
     const late = (st === 'open' || st === 'partial') && o.due && o.due < t && !activeIssue(o);
@@ -11482,18 +11505,23 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (late) badges.push(`<span class="badge late">納品指定日を過ぎています</span>`);
     if (isManual(o)) badges.unshift(`<button class="badge btn-like manb" data-act="manual">${o.isNew ? '新規・' : ''}手入力 ›</button>`);
     const canAct = st === 'open' || st === 'partial';
-    return `<div class="item ${st}${isDormant(o) ? ' dormant' : ''}" data-key="${esc(o.key)}">
+    // 「一部だけ届いた」「届かなかった」は、品名（または右の ›）を押したときだけ出す（ボタンが多すぎないように）
+    const more = [];
+    if (st === 'partial' || (st === 'open' && o.qty >= 2)) more.push(`<button class="partbtn" data-act="part">一部だけ届いた</button>`);
+    if (canAct && !activeIssue(o)) more.push(`<button class="nobtn" data-act="nodel">届かなかった</button>`);
+    const op = more.length && rowOpen.has(o.key);
+    return `<div class="item ${st}${isDormant(o) ? ' dormant' : ''}${more.length ? ' hasmore' : ''}${op ? ' xo' : ''}" data-key="${esc(o.key)}">
       <button class="chk" data-act="check" aria-label="${st === 'done' ? 'チェックを取り消す' : '全数納品にする'}" ${st === 'cancelled' ? 'disabled' : ''}><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i></button>
-      <div class="body">
+      <div class="body"${more.length ? ' data-act="toggle"' : ''}>
         <div class="name">${hasPencil(o) ? PENCIL : ''}${esc(o.name)}</div>
         <div class="spec">${esc(o.spec)}${o.maker ? '　' + esc(o.maker) : ''}</div>
         <div class="meta">${badges.join('')}${o.source === 'arranged' ? arrangedNote(o) : isManual(o) ? manualNote(o) : `納品指定 ${esc(md(o.due)) || '—'}　発注 ${esc(md(o.orderedAt.slice(0, 16)))}`}</div>
       </div>
       <div class="side">
         <div class="qty">${o.qty}<small> 個</small></div>
-        ${st === 'partial' || (st === 'open' && o.qty >= 2) ? `<button class="partbtn" data-act="part">一部</button>` : ''}
-        ${canAct && !activeIssue(o) ? `<button class="nobtn" data-act="nodel">届かなかった</button>` : ''}
+        ${more.length ? `<button class="morebtn" data-act="toggle" aria-label="ほかの操作（一部だけ届いた・届かなかった）"><span>›</span></button>` : ''}
       </div>
+      ${more.length ? `<div class="more">${more.join('')}</div>` : ''}
     </div>`;
   }
 
@@ -11504,6 +11532,13 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const key = b.closest('.item').dataset.key;
     const o = orderByKey(key); if (!o) return;
     const act = b.dataset.act;
+    if (act === 'toggle') {   // 品名を押した：ほかの操作を開く・閉じる（開くのは1件だけ）
+      const it = b.closest('.item'), on = !rowOpen.has(key);
+      rowOpen.clear(); document.querySelectorAll('#list .item.xo').forEach(x => x.classList.remove('xo'));   // 「open」は未納品の印なので、開いた行は「xo」
+      if (on) { rowOpen.add(key); it.classList.add('xo'); }
+      return;
+    }
+    rowOpen.delete(key);
     if (act === 'check') { if (statusOf(o) === 'done') askUndo(o); else checkAll(o); }
     else if (act === 'part') partial(o);
     else if (act === 'nodel') notDelivered(o);
@@ -12370,7 +12405,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       <div class="kbar"><span style="width:${all.length ? Math.round(nDone / all.length * 100) : 0}%"></span></div>`;
     if (wi.note) h += `<div class="note">${esc(wi.note)}</div>`;
     h += `<div class="filters kfil"><button class="chip ${kFilter === 'all' ? 'on' : ''}" data-kf="all">すべて<span class="n">${all.length}</span></button><button class="chip ${kFilter === 'todo' ? 'on' : ''}" data-kf="todo">まだ確認していない<span class="n">${all.length - nDone}</span></button><button class="chip ${kFilter === 'need' ? 'on' : ''}" data-kf="need">発注が必要<span class="n">${nNeed}</span></button>
-      <input type="search" id="kQ" class="kq" placeholder="リストの中を探す" value="${esc(kQ)}" autocomplete="off" autocorrect="off" spellcheck="false"></div>`;
+      <input type="search" id="kQ" class="kq" placeholder="リストの中を探す" value="${esc(kQ)}" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+      <p class="hint">棚を見て「足りている」か「発注が必要」を押します。品名を押すと、詳しい情報・目安の変更・外すができます。</p>`;
     if (!list.length) h += `<div class="empty">${kFilter === 'todo' ? 'すべて確認しました。「発注用バーコード」に進んでください。' : kFilter === 'need' ? '発注が必要な品目はありません。' : '当てはまる品目はありません。'}</div>`;
     const nE = list.filter(x => x.early).length;
     h += list.map((x, i) => (nE && i === 0 && x.early ? `<div class="ksec early">⚑ 早めに確認する品目（${nE}）</div>` : '') +
@@ -12399,13 +12435,12 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       : `<button type="button" class="btn kok" data-k="ok">足りている</button><button type="button" class="btn kng" data-k="need">発注が必要</button>`;
     return `<div class="kit ${r ? r.st : 'todo'}" data-id="${esc(x.id)}">
       <div class="kno">${x.no}</div>
-      <div class="kb">
-        <div class="knm">${badges.join('')}${esc(x.title)}</div>
+      <div class="kb" data-k="detail" title="押すと、詳しい情報・目安の変更・外すができます">
+        <div class="knm">${badges.join('')}${esc(x.title)}<span class="kchev" aria-hidden="true">›</span></div>
         <div class="ksp">${esc(x.pk.spec || '')}${x.pk.seller ? '　' + esc(x.pk.seller) : ''}${x.pk.stop ? `　<span class="ksub">Alf-Webの発注停止日 ${esc(md(x.pk.stop))}</span>` : ''}</div>
         ${need ? `<div class="kneed">${need}</div>` : ''}
         ${x.memo ? `<div class="kmemo">薬剤師のメモ：${esc(x.memo)}</div>` : ''}${x.e.note ? `<div class="kmemo">現場のメモ：${esc(x.e.note)}</div>` : ''}
         ${ord}
-        <button type="button" class="klink" data-k="detail">詳しく・変更・外す ›</button>
       </div>
       <div class="kact">${act}</div>
     </div>`;
@@ -12712,7 +12747,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       const note = $('kaNote').value.trim();
       const all = kAll(), same = x => x.id === id || (sel.jan && kJans(x).includes(sel.jan));
       const dupX = all.find(x => !x.removed && same(x)), rmX = !dupX && all.find(x => x.removed && same(x));
-      if (dupX) { $('kaMsg').textContent = `この品目はもう確認リストに入っています（${dupX.title}）。包装を変えたいときは、その品目の「詳しく・変更・外す」から選んでください。`; $('kaMsg').classList.add('warn'); return; }
+      if (dupX) { $('kaMsg').textContent = `この品目はもう確認リストに入っています（${dupX.title}）。包装を変えたいときは、その品目の名前を押して開く画面から選んでください。`; $('kaMsg').classList.add('warn'); return; }
       if (rmX) {   // 外した品目なら、追加ではなく元に戻す（入れた目安・メモはその品目に記録）
         const ed = { ...(kinyo.edits[rmX.id] || {}) }; delete ed.removed; delete ed.rmAt; delete ed.rmNote;
         if (box != null) ed.box = box; if (note) ed.note = note;
