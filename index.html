@@ -391,7 +391,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.14-2</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.16-1</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -435,7 +435,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.14-2 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.16-1 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -11201,7 +11201,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.14-2';
+  const VERSION = 'v2026.10.16-1';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -11231,10 +11231,41 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       r.onerror = () => rej(r.error);
     });
   }
+  /* iPadのSafariは、アプリを長いあいだ裏にしておくと、データの保存場所（IndexedDB）とのつながりを閉じてしまうことがある
+     （そのまま使うと「The database connection is closing」で失敗する。2026-10-16 「すべてのデータを消す」で発生）。
+     保存場所を使うときは、必ず T() で使う：つながりが閉じていたら、つなぎ直してから使う。 */
+  let dbOpening = null;
+  function watchDb(d) {
+    d.onclose = () => { if (db === d) db = null; };   // ブラウザの側でつながりが切れたとき（次に使うときにつなぎ直す）
+    d.onversionchange = () => { try { d.close(); } catch (e) {} if (db === d) db = null; };
+  }
+  function reopenDb() {
+    if (!dbOpening) dbOpening = (async () => {
+      const old = db; db = null;
+      try { if (old) old.close(); } catch (e) {}
+      const d = await openDb(); watchDb(d); db = d;
+    })().finally(() => { dbOpening = null; });
+    return dbOpening;
+  }
+  async function T(stores, mode) {
+    if (dbOpening) await dbOpening;
+    if (!db) await reopenDb();
+    try { return db.transaction(stores, mode || 'readonly'); }
+    catch (e) {
+      if (!e || e.name !== 'InvalidStateError') throw e;   // つながりが閉じている（閉じかけている）とき
+      await reopenDb();
+      return db.transaction(stores, mode || 'readonly');
+    }
+  }
+  // アプリが前に出てきたときに、つながりが生きているか確かめる（閉じていたら、つなぎ直しておく）
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !db || dbOpening) return;
+    try { db.transaction('meta'); } catch (e) { reopenDb().catch(() => {}); }
+  });
   const req = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-  const done = tx => new Promise((res, rej) => { tx.oncomplete = () => res(); tx.onerror = tx.onabort = () => rej(tx.error); });
-  const getAll = store => req(db.transaction(store).objectStore(store).getAll());
-  async function putOrder(o) { const tx = db.transaction('orders', 'readwrite'); tx.objectStore('orders').put(o); await done(tx); }
+  const done = tx => new Promise((res, rej) => { tx.oncomplete = () => res(); tx.onerror = tx.onabort = () => rej(tx.error || new Error('保存が途中で止まりました')); });
+  const getAll = async store => req((await T(store)).objectStore(store).getAll());
+  async function putOrder(o) { const tx = await T('orders', 'readwrite'); tx.objectStore('orders').put(o); await done(tx); }
 
   // 古い形のデータを今の形に直す
   //  版1→2：未納品対応（issue）、キャンセル（cancelled）、手配でできた行（source='arranged'）を追加
@@ -11287,7 +11318,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       return r;
     });
     const now = Date.now();
-    const tx = db.transaction(['orders', 'imports'], 'readwrite');
+    const tx = await T(['orders', 'imports'], 'readwrite');
     const st = tx.objectStore('orders');
     const existing = await Promise.all(rows.map(r => req(st.get(r.key))));
     let added = 0, same = 0; const qtyChanged = [], addedBySeller = {};
@@ -11825,7 +11856,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       issueLog(o, { at: now, type: 'arrange', list: plan.map(x => ({ seller: x.seller, qty: x.qty, eta: x.eta })), memo });
       delete o.issue.hold; delete o.issue.dormant; o.issue.state = 'arranged';
       if (keep === 'cancel') doCancel(o, now, 'arranged', '');
-      const tx = db.transaction('orders', 'readwrite'); const os = tx.objectStore('orders');
+      const tx = await T('orders', 'readwrite'); const os = tx.objectStore('orders');
       os.put(o); kids.forEach(k => os.put(k)); await done(tx);
       orders.push(...kids);
       closeDialog(); refresh(); toast(`${plan.map(x => x.seller).join('・')}の手配分を納品チェックに追加しました`);
@@ -12129,7 +12160,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       dialog(`<h3>${esc(edit.name)}</h3><p>この手入力した発注を削除しますか？ チェックや未納品対応の記録も一緒に消えます。元には戻せません。</p>
         <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn danger" id="mDelOk">削除する</button></div>`);
       $('mDelOk').addEventListener('click', async () => {
-        const tx = db.transaction('orders', 'readwrite'); tx.objectStore('orders').delete(edit.key); await done(tx);
+        const tx = await T('orders', 'readwrite'); tx.objectStore('orders').delete(edit.key); await done(tx);
         orders = orders.filter(x => x.key !== edit.key); closeDialog(); refresh(); toast('手入力した発注を削除しました');
       });
     });
@@ -12866,7 +12897,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     dialog(`<h3>すべてのデータを消しますか？</h3><p>取り込んだ発注、納品チェック、未納品対応、取り込みの記録、金曜発注の確認リストと確認の記録がすべて消えます。バックアップがなければ、元には戻せません。</p>
       <div class="actions"><button class="btn" data-close>やめる</button><button class="btn danger" id="dWipe">消す</button></div>`);
     $('dWipe').onclick = async () => {
-      const tx = db.transaction(['orders', 'imports'], 'readwrite');
+      const tx = await T(['orders', 'imports'], 'readwrite');
       tx.objectStore('orders').clear(); tx.objectStore('imports').clear(); await done(tx);
       kinyo = null; kchecks = {}; await setMeta('kinyo', null); await setMeta('kinyoChecks', {});
       await loadAll(); closeDialog(); render();
@@ -12898,8 +12929,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
      形式：JSONファイル。app='nohin-check'、format=1、schema=データの形の版 */
   const BK_DAYS = 7; // この日数を過ぎたら、バックアップを促す
   let lastBackup = null;
-  async function getMeta(k) { const r = await req(db.transaction('meta').objectStore('meta').get(k)); return r ? r.v : null; }
-  async function setMeta(k, v) { const tx = db.transaction('meta', 'readwrite'); tx.objectStore('meta').put({ k, v }); await done(tx); }
+  async function getMeta(k) { const r = await req((await T('meta')).objectStore('meta').get(k)); return r ? r.v : null; }
+  async function setMeta(k, v) { const tx = await T('meta', 'readwrite'); tx.objectStore('meta').put({ k, v }); await done(tx); }
   const daysSince = t => Math.floor((Date.now() - t) / 86400000);
 
   function renderBackupInfo() {
@@ -12973,7 +13004,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     }
     // 採用品一覧：置き換えならバックアップの分に、合わせるなら新しいほうを使う
     if (bMaster && (replace || !master || (bMaster.importedAt || 0) > (master.importedAt || 0))) { await setMeta('master', bMaster); master = bMaster; }
-    const tx = db.transaction(['orders', 'imports'], 'readwrite');
+    const tx = await T(['orders', 'imports'], 'readwrite');
     const os = tx.objectStore('orders'), is = tx.objectStore('imports');
     let added = 0, updated = 0, kept = 0;
     if (replace) {
@@ -13006,7 +13037,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   /* ---------- 起動 ---------- */
   (async () => {
     try {
-      db = await openDb();
+      await reopenDb();
       await loadAll();
       lastBackup = await getMeta('lastBackup');
       master = await getMeta('master');
@@ -13026,7 +13057,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
 
   // 検証用（画面の操作には使わない）
   window.NohinApp = { importText, _take: u8 => take(u8), get orders() { return orders; }, get master() { return master; },
-    get kinyo() { return kinyo; }, get kchecks() { return kchecks; }, _eanSvg: s => eanSvg(s), _eanOk: s => eanOk(s) };
+    get kinyo() { return kinyo; }, get kchecks() { return kchecks; }, _eanSvg: s => eanSvg(s), _eanOk: s => eanOk(s),
+    _closeDb: () => db && db.close() };   // 試験用：Safariが裏でつながりを閉じたときと同じ状態にする
 })();
 </script>
 </body>
