@@ -356,8 +356,8 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <!-- ========== 取り込み ========== -->
   <div class="view" id="v-import">
     <section class="box" id="scanBox">
-      <h2>発注書を取り込む</h2>
-      <p style="margin-top:0">発注PCで「発注書QR変換」にPDFを読み込み、QRコードを表示してから始めてください。</p>
+      <h2 id="scanTitle">発注書を取り込む</h2>
+      <p style="margin-top:0" id="scanLead">発注PCで「発注書QR変換」にPDFを読み込み、QRコードを表示してから始めてください。金曜発注の確認リストも、管理画面の「iPadにQRで送る」のQRコードをここで読み取れます。</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         <button class="btn primary big" id="start">カメラで読み取る</button>
         <button class="btn" id="flip" hidden>前後のカメラを切り替える</button>
@@ -391,7 +391,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
   <div class="view" id="v-more">
     <section class="box">
       <h2>アプリの版</h2>
-      <p style="margin-top:0">このアプリの版：<b>v2026.10.14-1</b></p>
+      <p style="margin-top:0">このアプリの版：<b>v2026.10.14-2</b></p>
       <button class="btn primary" id="upd">最新版を確認して読み込む</button>
       <p class="umsg" id="updMsg"></p>
       <p style="color:var(--sub);font-size:17px;margin-bottom:0">新しい版に差し替えたあとに押してください。データは消えません。<br>ホーム画面のアイコンは削除しないでください。削除するとデータも消えます。</p>
@@ -435,7 +435,7 @@ details.later > .card{margin-top:8px;background:#F7F9F9}
       <p style="margin-top:0;color:var(--sub)">試しに使ったデータを消して、使い始める前の状態に戻すときに使います。消す前に、必要ならバックアップを保存してください。</p>
       <button class="btn danger" id="wipe">すべてのデータを消す</button>
     </section>
-    <footer>納品チェック v2026.10.14-1 ／ データはこのiPadの中だけに保存されます</footer>
+    <footer>納品チェック v2026.10.14-2 ／ データはこのiPadの中だけに保存されます</footer>
   </div>
 </main>
 
@@ -11177,7 +11177,7 @@ const HCQ = (() => {
   /* iPad側で使う組み立て処理（ここでは検証用） */
   async function joinChunks(chunkByteArrays) {
     const parts = chunkByteArrays.map(u8 => {
-      const s = bin(u8.subarray(0, 40)); const m = s.match(/^H[QM]1\|([0-9a-f]{8})\|(\d+)\|(\d+)\|/);
+      const s = bin(u8.subarray(0, 40)); const m = s.match(/^H[QMK]1\|([0-9a-f]{8})\|(\d+)\|(\d+)\|/);   // K：金曜発注の確認リスト（管理画面から）
       if (!m) throw new Error('このQRコードは発注データではありません');
       return { id: m[1], i: +m[2], n: +m[3], data: u8.subarray(m[0].length) };
     }).sort((a, b) => a.i - b.i);
@@ -11201,7 +11201,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
    データはこのiPadのブラウザ内（IndexedDB）だけに保存する。
    ============================================================ */
 (() => {
-  const VERSION = 'v2026.10.14-1';
+  const VERSION = 'v2026.10.14-2';
   const SCHEMA = 3;             // 保存データの形の版。形を変えたら上げて、古いデータを読み替える
   const DONE_DAYS = 7;          // 「納品済み」「すべて」に表示する日数
   const $ = id => document.getElementById(id);
@@ -11315,13 +11315,14 @@ if (typeof module !== 'undefined') module.exports = HCQ;
 
   /* ---------- 画面の切り替え ---------- */
   let view = 'check';
+  let scanFor = '';   // 'kinyo'：金曜発注の画面から読み取りを始めたとき
   $('tabs').addEventListener('click', e => {
     const b = e.target.closest('button[data-v]'); if (!b) return;
     showView(b.dataset.v);
   });
   function showView(v) {
     if (view === 'import' && v !== 'import') stopCam();
-    view = v;
+    view = v; scanFor = ''; setScanHead();
     document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
     document.querySelectorAll('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
     window.scrollTo(0, 0);
@@ -12416,6 +12417,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     if (k === 'bunsent') { const L = kNeedList(); const cur = L[kBarIdx]; const ses = kSession(true); const r = cur && ses.res[cur.id]; if (r) { r.sent = false; delete r.sentAt; await kSaveChecks(); renderKinyo(); } return; }
     // リストの管理
     if (k === 'import') return $('kFile').click();
+    if (k === 'qr') { showView('import'); scanFor = 'kinyo'; setScanHead(); return startCam(); }   // 「取り込み」の画面でカメラを起動する（読み取ると、ここに戻って取り込む）
     if (k === 'add') return kAddDialog();
     if (k === 'undoEdit') { const id2 = b.dataset.id; const it = kItems().find(v => v.id === id2); if (it) kDetail(it); return; }
     if (k === 'restore') { const id2 = b.dataset.id; const it = kAll().find(v => v.id === id2); if (it) await kRestore(it); return; }
@@ -12505,8 +12507,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
         <dt>取り込んだ日時</dt><dd>${fmt(kinyo.importedAt)}</dd></dl></section>`;
     }
     h += `<section class="box"><h2>確認リストを取り込む</h2>
-      <p style="margin-top:0">薬剤師が管理画面で作った確認リストのファイル（「金曜発注リスト_….json」）を選びます。${kinyo ? '現場で追加・変更した内容は、新しいリストに入っていない分は残ります。' : ''}</p>
-      <button type="button" class="btn primary" data-k="import">ファイルを選ぶ</button></section>`;
+      <p style="margin-top:0">薬剤師が管理画面で作った確認リストを取り込みます。管理画面で「iPadにQRで送る」を押してQRコードを出し、下の「QRコードで読み取る」を押してください。ファイル（「金曜発注リスト_….json」）を選ぶこともできます。${kinyo ? '現場で追加・変更した内容は、新しいリストに入っていない分は残ります。' : ''}</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap"><button type="button" class="btn primary" data-k="qr">QRコードで読み取る</button><button type="button" class="btn" data-k="import">ファイルを選ぶ</button></div></section>`;
     if (kinyo) {
       const its = kItems();
       const ch = its.filter(x => x.src === 'staff' || x.e.box != null || x.e.jan || x.e.note);
@@ -12524,11 +12526,14 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     $('kBody').innerHTML = h;
   }
 
-  // 確認リストのファイルを取り込む
+  // 確認リストのファイルを取り込む（QRコードで読み取ったときも、同じ kOfferList で取り込む）
   $('kFile').addEventListener('change', async e => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
     let L;
     try { L = JSON.parse(await f.text()); } catch (er) { return toast('このファイルは読み込めませんでした（確認リストのファイルではないようです）'); }
+    kOfferList(L, f.name);
+  });
+  function kOfferList(L, src) {
     if (!L || L.type !== 'kinyo-hatchu-list') return toast('このファイルは金曜発注の確認リストではありません');
     if (L.version !== 2 || !Array.isArray(L.items) || !Array.isArray(L.weeks)) return toast('古い形式の確認リストです（商品コードが入っていません）。管理画面を新しくしてから作り直してください');
     const rev = new Set(L.reviewed || []), ids = new Set(L.items.map(x => x.id)), jans = new Set(L.items.map(x => x.jan).filter(Boolean));
@@ -12541,7 +12546,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     const nIn = st0.filter(s => s.jan && jans.has(s.jan)).length, nRev = st0.filter(s => rev.has(s.id) && !(s.jan && jans.has(s.jan))).length;
     const keepTxt = [keepStaff.length ? `現場で追加した ${keepStaff.length}品目` : '', nEdits ? `現場で変更した ${nEdits}品目` : '', nRmK ? `現場で外した ${nRmK}品目` : ''].filter(Boolean).join('、');
     dialog(`<h3>確認リストを取り込みますか？</h3>
-      <dl class="kv" style="margin:8px 0 14px"><dt>ファイル</dt><dd style="word-break:break-all">${esc(f.name)}</dd><dt>作成</dt><dd>${fmt(L.createdAt)}</dd>
+      <dl class="kv" style="margin:8px 0 14px"><dt>読み込み元</dt><dd style="word-break:break-all">${esc(src)}</dd><dt>作成</dt><dd>${fmt(L.createdAt)}</dd>
       <dt>品目</dt><dd>${L.items.length}品目</dd><dt>対象の発注日</dt><dd>${L.weeks.map(wLabel).join('・')}</dd></dl>
       ${kinyo ? `<p>今の確認リスト（${kinyo.list.items.length}品目）と入れ替えます。${nIn ? `現場で追加した品目のうち ${nIn}品目は、新しいリストに入っています。` : ''}${nRev ? `薬剤師が見直した ${nRev}品目は、「現場で追加」から外れます。` : ''}${keepTxt ? `まだ見直していない、${keepTxt}の内容は残します。` : ''}これまでの確認の記録も残ります。</p>` : ''}
       <div class="actions"><button type="button" class="btn" data-close>やめる</button><button type="button" class="btn primary" id="kImp">取り込む</button></div>`);
@@ -12549,7 +12554,7 @@ if (typeof module !== 'undefined') module.exports = HCQ;
       kinyo = { list: L, importedAt: Date.now(), updatedAt: Date.now(), staffItems: keepStaff, edits: keepEdits };
       await kSave(); closeDialog(); kSub = 'check'; kWeekSel = null; renderKinyo(); toast(`確認リストを取り込みました（${L.items.length}品目）`);
     });
-  });
+  }
 
   // 品目の詳しい情報と、現場での変更（目安・包装・メモ）
   function kDetail(x) {
@@ -12705,6 +12710,14 @@ if (typeof module !== 'undefined') module.exports = HCQ;
 
   /* ---------- カメラで読み取る ---------- */
   let scanKind = 'Q';
+  // 「金曜発注」→「リストの管理」→「QRコードで読み取る」から来たときは、見出しと説明を確認リスト用にする（読み取れるものは同じ。scanFor は showView の近くで宣言）
+  function setScanHead() {
+    const k = scanFor === 'kinyo';
+    $('scanTitle').textContent = k ? '金曜発注の確認リストを読み取る' : '発注書を取り込む';
+    $('scanLead').textContent = k
+      ? 'パソコンの「金曜発注 管理画面」で「iPadにQRで送る」を押して、出てきたQRコードにカメラを向けてください。QRコードは自動で切り替わります。全部読み取れるまで、そのまま向けておいてください。'
+      : '発注PCで「発注書QR変換」にPDFを読み込み、QRコードを表示してから始めてください。金曜発注の確認リストも、管理画面の「iPadにQRで送る」のQRコードをここで読み取れます。';
+  }
   let stream = null, facing = 'environment', scanning = false, frameNo = 0, parts = new Map(), batch = null, total = 0, audio = null;
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -12761,8 +12774,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
   }
   function take(u8) {
     let head = ''; for (let i = 0; i < Math.min(40, u8.length); i++) head += String.fromCharCode(u8[i]);
-    const m = head.match(/^H([QM])1\|([0-9a-f]{8})\|(\d+)\|(\d+)\|/);
-    if (!m) { $('msg').textContent = '発注データではないQRコードです。発注書QR変換の画面に向けてください。'; return; }
+    const m = head.match(/^H([QMK])1\|([0-9a-f]{8})\|(\d+)\|(\d+)\|/);
+    if (!m) { $('msg').textContent = '読み取れないQRコードです。発注書QR変換、または金曜発注 管理画面のQRコードに向けてください。'; return; }
     const kind = m[1], id = m[2], i = +m[3], n = +m[4];
     if (batch && batch !== id) { $('msg').textContent = '別のデータのQRコードを読みました。最初から読み直します。'; parts = new Map(); }
     if (batch !== id) {
@@ -12776,8 +12789,8 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     flash();
     if (parts.size < total) {
       const rest = []; for (let k = 1; k <= total; k++) if (!parts.has(k)) rest.push(k);
-      $('msg').textContent = scanKind === 'M'
-        ? `採用品一覧を読み取っています。iPadを動かさずに、そのまま画面に向けておいてください（残り ${rest.length}枚）`
+      $('msg').textContent = scanKind === 'M' || scanKind === 'K'
+        ? `${scanKind === 'K' ? '金曜発注の確認リスト' : '採用品一覧'}を読み取っています。iPadを動かさずに、そのまま画面に向けておいてください（残り ${rest.length}枚）`
         : `${i}枚目を読み取りました。発注PCで「次の枚」を押してください（残り：${rest.join('、')}枚目）`;
     } else finishScan();
   }
@@ -12791,6 +12804,11 @@ if (typeof module !== 'undefined') module.exports = HCQ;
     try {
       text = await HCQ.joinChunks([...parts.values()]);
       if (text.startsWith('HCM1')) { const r = await importMaster(text); return showMasterResult(r); }
+      if (text.startsWith('HCK1')) {   // 金曜発注の確認リスト：1行目は見出し、2行目からが確認リスト（ファイルと同じ中身）
+        let L; try { L = JSON.parse(text.slice(text.indexOf('\n') + 1)); } catch (e) { throw new Error('確認リストの中身が読めません'); }
+        $('scanBox').hidden = false; showView('kinyo'); kSub = 'manage'; renderKinyo();
+        return kOfferList(L, 'QRコード（管理画面から）');
+      }
       log = await importText(text);
     }
     catch (e) { resetScan(); return camError('取り込めませんでした。もう一度最初から読み取ってください。（' + e.message + '）'); }
